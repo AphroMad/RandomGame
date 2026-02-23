@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EARWORM</title>
+<title>0.1 SONG</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="songs.js"></script>
 <style>
@@ -202,7 +202,9 @@
   .btn-skip:disabled { opacity: .2; cursor: not-allowed; }
 
   /* Footer */
-  footer { display: flex; justify-content: flex-end; align-items: center; padding-top: 16px; }
+  footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; }
+  .inspired { font-family: var(--ff-mono); font-size: .6rem; color: var(--muted); letter-spacing: .08em; text-decoration: none; transition: color .2s; }
+  .inspired:hover { color: var(--text); }
   .btn-next {
     background: transparent; border: 1px solid var(--border2); border-radius: 10px;
     padding: 11px 26px; color: var(--text); font-family: var(--ff-mono); font-size: .7rem;
@@ -227,7 +229,7 @@
 
 <div class="shell">
   <header>
-    <a href="../index.html" class="logo">EAR<em>WORM</em></a>
+    <a href="../index.html" class="logo">0.1 <em>SONG</em></a>
   </header>
 
   <div class="center">
@@ -284,6 +286,7 @@
   </div>
 
   <footer>
+    <a href="https://lessgames.com/songless" target="_blank" class="inspired">inspired by songless ↗</a>
     <button class="btn-next" id="btnNext" onclick="nextSong()">NEXT SONG →</button>
   </footer>
 </div>
@@ -657,7 +660,6 @@ function endGame() {
     <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
       <div style="font-family:var(--ff-title);font-size:5rem;color:var(--accent);letter-spacing:.1em">GAME OVER</div>
       <div style="font-family:var(--ff-mono);font-size:.75rem;color:var(--muted);letter-spacing:.15em">ALL ${songs.length} SONGS PLAYED</div>
-
       <button onclick="location.reload()"
         style="margin-top:28px;padding:14px 36px;background:var(--accent);color:#09090b;border:none;
                border-radius:10px;font-family:var(--ff-title);font-size:1.2rem;letter-spacing:.1em;cursor:pointer">

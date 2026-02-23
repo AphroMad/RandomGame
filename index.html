@@ -4,77 +4,142 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Random Games</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:       #09090b;
+            --s1:       #111114;
+            --s2:       #17171c;
+            --border:   #222228;
+            --border2:  #2e2e38;
+            --accent:   #c8f060;
+            --text:     #e2e2ee;
+            --muted:    #52526a;
+            --muted2:   #38384a;
+            --ff-title: 'Bebas Neue', sans-serif;
+            --ff-mono:  'DM Mono', monospace;
+            --ff-body:  'DM Sans', sans-serif;
+        }
+
+        html, body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--ff-body);
         }
 
         body {
-            min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            gap: 20px;
+            padding: 28px 24px;
+        }
+
+        body::after {
+            content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+        }
+
+        .orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+        .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(200,240,96,.05) 0%, transparent 70%); }
+        .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(96,208,240,.04) 0%, transparent 70%); }
+
+        .shell {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
         }
 
         h1 {
-            color: #fff;
-            font-size: 2.5rem;
-            margin-bottom: 40px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: var(--ff-title);
+            font-size: clamp(2.6rem, 8vw, 3.8rem);
+            letter-spacing: .1em;
+            line-height: 1;
+            color: var(--accent);
         }
 
         .buttons-container {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 12px;
         }
 
         .game-btn {
-            padding: 20px 60px;
-            font-size: 1.3rem;
-            font-weight: 600;
-            border: none;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 32px;
+            min-width: 280px;
+            background: var(--s1);
+            border: 1px solid var(--border);
             border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
             text-decoration: none;
-            text-align: center;
-            min-width: 250px;
+            transition: border-color .2s, background .2s, transform .15s;
         }
 
         .game-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent);
+            background: rgba(200,240,96,.04);
+            transform: translateY(-2px);
         }
 
-        .music01s {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .game-btn .icon {
+            font-size: 1.4rem;
         }
 
-        .musicsplit {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+        .game-btn .label {
+            font-family: var(--ff-title);
+            font-size: 1.4rem;
+            letter-spacing: .08em;
+            color: var(--text);
+            transition: color .2s;
         }
 
-        .pokeguess {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
+        .game-btn:hover .label {
+            color: var(--accent);
         }
+
+        .game-btn .desc {
+            font-family: var(--ff-mono);
+            font-size: .6rem;
+            color: var(--muted);
+            letter-spacing: .08em;
+            margin-left: auto;
+        }
+
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
     </style>
 </head>
 <body>
-    <h1>Random Games</h1>
-    <div class="buttons-container">
-        <a href="Music01s/index.html" class="game-btn music01s">Music 01s</a>
-        <a href="MusicSplit/index.html" class="game-btn musicsplit">Music Split</a>
-        <a href="PokeGuess/index.html" class="game-btn pokeguess">PokeGuess</a>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+
+    <div class="shell">
+        <h1>Random Games</h1>
+        <div class="buttons-container">
+            <a href="Music01s/index.html" class="game-btn">
+                <span class="icon">🎵</span>
+                <span class="label">Music 01s</span>
+                <span class="desc">GUESS THE SONG</span>
+            </a>
+            <a href="MusicSplit/index.html" class="game-btn">
+                <span class="icon">🎹</span>
+                <span class="label">Music Split</span>
+                <span class="desc">SEPARATE INSTRUMENTS</span>
+            </a>
+            <a href="PokeGuess/index.html" class="game-btn">
+                <span class="icon">⚡</span>
+                <span class="label">PokeGuess</span>
+                <span class="desc">POKÉQUIZ</span>
+            </a>
+        </div>
     </div>
 </body>
 </html>

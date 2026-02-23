@@ -1,60 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fake Bandle - Pierre Marsaa</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi/build/Midi.js"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Courier New', monospace; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; padding: 40px 20px; }
-        h1 { font-size: 1.4rem; font-weight: normal; letter-spacing: 0.2em; text-transform: uppercase; color: #fff; margin-bottom: 8px; }
-        .home-link { text-decoration: none; display: inline-block; margin-bottom: 6px; opacity: 0.85; transition: opacity 0.15s; }
-        .home-link:hover { opacity: 1; }
-        .home-link:hover h1 { text-decoration: underline; text-underline-offset: 4px; }
-        .subtitle { font-size: 0.75rem; color: #555; letter-spacing: 0.1em; margin-bottom: 40px; }
-        .subtitle.warning { color: #f59e0b; }
-        .file-section { margin-bottom: 48px; }
-        .file-title { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #444; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1e1e1e; }
-        .groups { display: flex; flex-direction: column; gap: 2px; }
-        .group-row { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #161616; border: 1px solid #1e1e1e; transition: border-color 0.2s; }
-        .group-row.playing { border-color: #4ade80; background: #0d1f14; }
-        .group-name { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #888; width: 140px; flex-shrink: 0; }
-        .group-row.playing .group-name { color: #4ade80; }
-        .instruments { font-size: 0.7rem; color: #444; flex: 1; }
-        .group-row.playing .instruments { color: #666; }
-        .btn { font-family: 'Courier New', monospace; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 6px 14px; border: 1px solid #333; background: transparent; color: #666; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
-        .btn:hover { border-color: #4ade80; color: #4ade80; }
-        .group-row.playing .btn { border-color: #4ade80; color: #4ade80; }
-        .group-row.playing .btn:hover { background: #4ade80; color: #000; }
-        .indicator { width: 6px; height: 6px; border-radius: 50%; background: #222; flex-shrink: 0; }
-        .group-row.playing .indicator { background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .loading { font-size: 0.75rem; color: #444; }
-        #app { padding-bottom: 70px; }
-        #bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #1e1e1e; padding: 12px 24px; display: flex; align-items: center; gap: 16px; z-index: 100; }
-        #now-playing { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: #444; width: 140px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #now-playing.active { color: #4ade80; }
-        #progress-wrap { flex: 1; height: 3px; background: #1e1e1e; position: relative; cursor: pointer; border-radius: 2px; }
-        #progress-wrap::before { content: ''; position: absolute; top: -10px; bottom: -10px; left: 0; right: 0; }
-        #progress-bar { height: 100%; background: #4ade80; width: 0%; transition: width 0.1s linear; border-radius: 2px; pointer-events: none; }
-        #scrubber { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; border-radius: 50%; background: #4ade80; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
-        #progress-wrap:hover #scrubber { opacity: 1; }
-        #time-display { font-size: 0.65rem; letter-spacing: 0.1em; color: #444; width: 90px; text-align: right; flex-shrink: 0; }
-        #time-display.active { color: #4ade80; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Separate Instruments</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tonejs/midi/build/Midi.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #09090b;
+    --s1:       #111114;
+    --s2:       #17171c;
+    --border:   #222228;
+    --border2:  #2e2e38;
+    --accent:   #c8f060;
+    --text:     #e2e2ee;
+    --muted:    #52526a;
+    --muted2:   #38384a;
+    --ff-title: 'Bebas Neue', sans-serif;
+    --ff-mono:  'DM Mono', monospace;
+    --ff-body:  'DM Sans', sans-serif;
+  }
+
+  html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--ff-body); }
+
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+
+  .orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+  .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(200,240,96,.05) 0%, transparent 70%); }
+  .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(96,208,240,.04) 0%, transparent 70%); }
+
+  .shell {
+    position: relative; z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 24px 100px;
+  }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 40px; }
+
+  .logo {
+    font-family: var(--ff-title);
+    font-size: 2.6rem;
+    letter-spacing: .1em;
+    line-height: 1;
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity .15s;
+  }
+  .logo:hover { opacity: 0.8; }
+  .logo em { color: var(--text); font-style: normal; }
+
+  .inspired {
+    font-family: var(--ff-mono);
+    font-size: .6rem;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+  .inspired a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+  .inspired a:hover { color: var(--accent); }
+
+  .groups { display: flex; flex-direction: column; gap: 4px; }
+
+  .group-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 13px 18px;
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: border-color .2s, background .2s;
+  }
+  .group-row.playing { border-color: var(--accent); background: rgba(200,240,96,.04); }
+
+  .indicator {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border2); flex-shrink: 0; transition: background .2s;
+  }
+  .group-row.playing .indicator { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .group-name {
+    font-family: var(--ff-title);
+    font-size: 1.1rem;
+    letter-spacing: .08em;
+    color: var(--muted);
+    width: 160px; flex-shrink: 0;
+    transition: color .2s;
+  }
+  .group-row.playing .group-name { color: var(--accent); }
+
+  .instruments {
+    font-family: var(--ff-mono);
+    font-size: .62rem;
+    color: var(--muted2);
+    letter-spacing: .06em;
+    flex: 1;
+  }
+  .group-row.playing .instruments { color: var(--muted); }
+
+  .btn {
+    font-family: var(--ff-mono);
+    font-size: .6rem;
+    letter-spacing: .12em;
+    padding: 7px 16px;
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, color .15s, background .15s;
+    flex-shrink: 0;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .group-row.playing .btn { border-color: var(--accent); color: var(--accent); }
+  .group-row.playing .btn:hover { background: var(--accent); color: #09090b; }
+
+  .loading { font-family: var(--ff-mono); font-size: .7rem; color: var(--muted); letter-spacing: .1em; }
+
+  /* Bottom bar */
+  #bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(9,9,11,.92);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex; align-items: center; gap: 18px;
+    z-index: 100;
+  }
+
+  #now-playing {
+    font-family: var(--ff-title);
+    font-size: 1rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    width: 160px; flex-shrink: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color .2s;
+  }
+  #now-playing.active { color: var(--accent); }
+
+  #progress-wrap {
+    flex: 1; height: 3px; background: var(--border2);
+    position: relative; cursor: pointer; border-radius: 2px;
+  }
+  #progress-wrap::before { content: ''; position: absolute; top: -10px; bottom: -10px; left: 0; right: 0; }
+  #progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; border-radius: 2px; pointer-events: none; }
+  #scrubber { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 10px; height: 10px; border-radius: 50%; background: var(--accent); opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #progress-wrap:hover #scrubber { opacity: 1; }
+
+  #time-display {
+    font-family: var(--ff-mono);
+    font-size: .6rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    width: 90px; text-align: right; flex-shrink: 0;
+    transition: color .2s;
+  }
+  #time-display.active { color: var(--accent); }
+</style>
 </head>
 <body>
-    <a href="/" class="home-link">
-        <h1>Fake Bandle</h1>
-    </a>
-    <p class="subtitle warning">⚠ only 1 song for testing purposes</p>
-    <div id="app"><p class="loading">Loading...</p></div>
-    <div id="bottom-bar">
-        <div id="now-playing">—</div>
-        <div id="progress-wrap"><div id="progress-bar"></div><div id="scrubber"></div></div>
-        <div id="time-display">00:00 / 00:00</div>
-    </div>
+<div class="orb orb-a"></div>
+<div class="orb orb-b"></div>
+
+<div class="shell">
+  <header>
+    <a href="/" class="logo">Separate<em>Instruments</em></a>
+    <span class="inspired">Inspired by <a href="https://bandle.app" target="_blank">bandle.app</a></span>
+  </header>
+  <div id="app"><p class="loading">Loading...</p></div>
+</div>
+
+<div id="bottom-bar">
+  <div id="now-playing">—</div>
+  <div id="progress-wrap"><div id="progress-bar"></div><div id="scrubber"></div></div>
+  <div id="time-display">00:00 / 00:00</div>
+</div>
 
 <script>
 // ── UTILS ──────────────────────────────────────────────────────────────────
@@ -87,41 +213,29 @@ function formatTime(s) {
     return `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`
 }
 
-function midiToFreq(midi) {
-    return 440 * Math.pow(2, (midi - 69) / 12)
-}
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12) }
 
 function getOscType(groupName, isPerc) {
     if (isPerc) return 'sine'
-    if (groupName === 'Brass/Wind') return 'triangle'  // sawtooth was too harsh
+    if (groupName === 'Brass/Wind') return 'triangle'
     if (groupName === 'Strings' || groupName === 'Ensemble' || groupName === 'Choir') return 'sine'
     if (groupName === 'Bass') return 'triangle'
     return 'sine'
 }
 
 // ── PLAYER ─────────────────────────────────────────────────────────────────
-let ctx = null
-let nodes = []
-let ticker = null
-let playStart = 0
-let totalDur = 0
-let trackStart = 0
-let currentTracks = []
-let currentGroup = null
-let onTickFn = null
-let onStopFn = null
+let ctx = null, nodes = [], ticker = null
+let playStart = 0, totalDur = 0, trackStart = 0
+let currentTracks = [], currentGroup = null
+let onTickFn = null, onStopFn = null
 
 function killAll() {
-    clearInterval(ticker)
-    ticker = null
+    clearInterval(ticker); ticker = null
     nodes.forEach(n => { try { n.stop() } catch(e) {} try { n.disconnect() } catch(e) {} })
     nodes = []
 }
 
-function stopAll(cb) {
-    killAll()
-    if (cb) cb()
-}
+function stopAll(cb) { killAll(); if (cb) cb() }
 
 function scheduleNotes(tracks, groupName, seekOffset) {
     const now = ctx.currentTime + 0.1
@@ -140,7 +254,6 @@ function scheduleNotes(tracks, groupName, seekOffset) {
             const freq = isPerc ? 80 : midiToFreq(note.midi)
             const vol = note.velocity * 0.6
 
-            // Low-pass filter per note to soften harsh harmonics
             const filter = ctx.createBiquadFilter()
             filter.type = 'lowpass'
             filter.frequency.value = groupName === 'Bass' ? 600 : groupName === 'Brass/Wind' ? 1800 : 5000
@@ -176,18 +289,12 @@ async function play(tracks, groupName, onTick, onStop) {
     if (ctx) { try { await ctx.close() } catch(e) {} }
     ctx = new AudioContext()
     await ctx.resume()
-
-    onTickFn = onTick
-    onStopFn = onStop
-    currentTracks = tracks
-    currentGroup = groupName
-
+    onTickFn = onTick; onStopFn = onStop
+    currentTracks = tracks; currentGroup = groupName
     const allNotes = tracks.flatMap(t => t.notes)
     if (!allNotes.length) return
-
     trackStart = Math.min(...allNotes.map(n => n.time))
     totalDur = Math.max(...allNotes.map(n => n.time + n.duration)) - trackStart
-
     scheduleNotes(tracks, groupName, 0)
 }
 
@@ -201,7 +308,6 @@ async function seek(fraction) {
 }
 
 // ── UI ─────────────────────────────────────────────────────────────────────
-const app = document.getElementById('app')
 const nowPlaying = document.getElementById('now-playing')
 const progressBar = document.getElementById('progress-bar')
 const progressWrap = document.getElementById('progress-wrap')
@@ -209,25 +315,22 @@ const scrubber = document.getElementById('scrubber')
 const timeDisplay = document.getElementById('time-display')
 
 function resetBar() {
-    progressBar.style.width = '0%'
-    scrubber.style.left = '0%'
-    timeDisplay.textContent = '00:00 / 00:00'
-    timeDisplay.classList.remove('active')
-    nowPlaying.textContent = '—'
-    nowPlaying.classList.remove('active')
+    progressBar.style.width = '0%'; scrubber.style.left = '0%'
+    timeDisplay.textContent = '00:00 / 00:00'; timeDisplay.classList.remove('active')
+    nowPlaying.textContent = '—'; nowPlaying.classList.remove('active')
 }
 
 progressWrap.addEventListener('click', async (e) => {
     const rect = progressWrap.getBoundingClientRect()
     await seek((e.clientX - rect.left) / rect.width)
 })
-
 progressWrap.addEventListener('mousemove', (e) => {
     const rect = progressWrap.getBoundingClientRect()
     scrubber.style.left = `${Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))}%`
 })
 
 async function loadMidis() {
+    const app = document.getElementById('app')
     const res = await fetch('midi/index.json')
     const files = await res.json()
     app.innerHTML = ''
@@ -236,7 +339,6 @@ async function loadMidis() {
         const data = await fetch(`midi/${file}`)
         const buffer = await data.arrayBuffer()
         const midi = new Midi(buffer)
-
         const groups = groupTracksByRole(midi.tracks)
         const tracksByGroup = {}
         midi.tracks.filter(t => t.notes.length > 0).forEach(track => {
@@ -246,7 +348,6 @@ async function loadMidis() {
         })
 
         const section = document.createElement('div')
-        section.className = 'file-section'
         section.innerHTML = `<div class="groups"></div>`
         app.appendChild(section)
         const groupsEl = section.querySelector('.groups')
@@ -261,33 +362,24 @@ async function loadMidis() {
                 <button class="btn">Play</button>
             `
             const btn = row.querySelector('.btn')
-
             btn.addEventListener('click', async () => {
                 const wasPlaying = row.classList.contains('playing')
                 document.querySelectorAll('.group-row').forEach(r => {
-                    r.classList.remove('playing')
-                    r.querySelector('.btn').textContent = 'Play'
+                    r.classList.remove('playing'); r.querySelector('.btn').textContent = 'Play'
                 })
                 if (wasPlaying) { stopAll(); resetBar(); return }
-
-                row.classList.add('playing')
-                btn.textContent = 'Stop'
-
-                await play(
-                    tracksByGroup[role] || [], role,
+                row.classList.add('playing'); btn.textContent = 'Stop'
+                await play(tracksByGroup[role] || [], role,
                     (elapsed, duration) => {
                         const pct = Math.min((elapsed / duration) * 100, 100)
-                        progressBar.style.width = `${pct}%`
-                        scrubber.style.left = `${pct}%`
+                        progressBar.style.width = `${pct}%`; scrubber.style.left = `${pct}%`
                         timeDisplay.textContent = `${formatTime(elapsed)} / ${formatTime(duration)}`
                         timeDisplay.classList.add('active')
-                        nowPlaying.textContent = role
-                        nowPlaying.classList.add('active')
+                        nowPlaying.textContent = role; nowPlaying.classList.add('active')
                     },
                     () => { row.classList.remove('playing'); btn.textContent = 'Play'; resetBar() }
                 )
             })
-
             groupsEl.appendChild(row)
         }
     }
