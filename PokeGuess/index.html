@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PokéQuiz Multijoueur</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #E3350D;
+  --yellow: #F4D03F;
+  --blue: #2A75BB;
+  --dark: #0f0f1a;
+  --card: #1a1a2e;
+  --card2: #16213e;
+  --white: #F0F0FF;
+  --green: #27ae60;
+  --wrong: #c0392b;
+  --border: #ffffff18;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--dark);
+  color: var(--white);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 40px;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 10%, #1a3a6b44 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 90%, #6b1a1a33 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+.wrap { position: relative; z-index: 1; width: 100%; max-width: 640px; }
+.header { text-align: center; margin-bottom: 28px; }
+.header h1 {
+  font-family: 'Bangers', cursive;
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  letter-spacing: 4px; color: var(--yellow);
+  text-shadow: 4px 4px 0 var(--red), 7px 7px 0 #00000066;
+  line-height: 1;
+}
+.header p { color: #8888aa; font-size: .85rem; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+/* ===== SETUP ===== */
+#setup { display: flex; flex-direction: column; gap: 20px; }
+.setup-section { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px 22px; }
+.setup-section h2 { font-family: 'Bangers', cursive; font-size: 1.25rem; letter-spacing: 2px; color: var(--yellow); margin-bottom: 14px; }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper-btn {
+  width: 44px; height: 44px; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--card2); color: var(--white);
+  font-size: 1.5rem; font-weight: 900; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.stepper-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+.stepper-val { font-family: 'Bangers', cursive; font-size: 2rem; min-width: 60px; text-align: center; }
+.player-inputs { display: flex; flex-direction: column; gap: 10px; }
+.player-row { display: flex; align-items: center; gap: 10px; }
+.player-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.player-name-input {
+  flex: 1; background: var(--card2); border: 2px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; font-family: 'Nunito', sans-serif; font-size: .95rem; font-weight: 700;
+  color: var(--white); outline: none; transition: border-color .2s;
+}
+.player-name-input:focus { border-color: var(--yellow); }
+.round-options { display: flex; gap: 10px; flex-wrap: wrap; }
+.round-opt {
+  flex: 1; min-width: 55px; padding: 10px; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--card2); color: #888;
+  font-family: 'Bangers', cursive; font-size: 1.3rem; cursor: pointer; text-align: center; transition: all .2s;
+}
+.round-opt.active { border-color: var(--yellow); color: var(--yellow); background: #F4D03F18; }
+.round-opt:hover { border-color: var(--yellow); }
+
+/* Mode selector */
+.mode-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mode-opt {
+  padding: 16px 12px; border-radius: 16px; border: 2px solid var(--border);
+  background: var(--card2); cursor: pointer; text-align: center;
+  transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.mode-opt:hover { border-color: var(--yellow); }
+.mode-opt.active { border-color: var(--yellow); background: #F4D03F12; box-shadow: 0 0 16px #F4D03F22; }
+.mode-opt .mode-icon { font-size: 2rem; }
+.mode-opt .mode-title { font-family: 'Bangers', cursive; font-size: 1.1rem; letter-spacing: 1px; color: var(--white); }
+.mode-opt .mode-desc { font-size: .75rem; color: #888; line-height: 1.3; }
+
+.start-btn {
+  width: 100%; padding: 18px; border: none; border-radius: 18px;
+  background: linear-gradient(135deg, var(--red), #ff6b35); color: var(--white);
+  font-family: 'Bangers', cursive; font-size: 1.8rem; letter-spacing: 3px;
+  cursor: pointer; transition: transform .2s, box-shadow .2s; box-shadow: 0 6px 24px #E3350D66;
+}
+.start-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px #E3350D88; }
+.start-btn:disabled { opacity: .6; transform: none; cursor: default; }
+
+/* ===== GAME ===== */
+#game { display: none; flex-direction: column; gap: 12px; }
+.turn-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 12px 18px; gap: 12px;
+}
+.turn-who { display: flex; align-items: center; gap: 10px; }
+.turn-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+.turn-name { font-family: 'Bangers', cursive; font-size: 1.4rem; letter-spacing: 1px; }
+.turn-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.turn-round { font-size: .78rem; color: #777; white-space: nowrap; }
+.mode-badge {
+  font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+}
+.mode-badge.qcm { background: #2A75BB33; color: #6ab0ff; border: 1px solid #2A75BB55; }
+.mode-badge.libre { background: #27ae6033; color: #6effa0; border: 1px solid #27ae6055; }
+
+.scoreboard { display: flex; gap: 8px; flex-wrap: wrap; }
+.score-chip {
+  flex: 1; min-width: 80px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 10px; text-align: center; transition: border-color .3s, box-shadow .3s;
+}
+.score-chip.active-player { border-color: var(--yellow); box-shadow: 0 0 12px #F4D03F44; }
+.score-chip .chip-dot { width: 8px; height: 8px; border-radius: 50%; margin: 0 auto 3px; }
+.score-chip .chip-name { font-size: .68rem; color: #888; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-chip .chip-score { font-family: 'Bangers', cursive; font-size: 1.5rem; color: var(--yellow); }
+
+.timer-wrap { display: flex; align-items: center; gap: 10px; }
+.timer-label { font-family: 'Bangers', cursive; font-size: 1.3rem; color: var(--yellow); }
+.bar-outer { flex: 1; height: 10px; background: #ffffff15; border-radius: 5px; overflow: hidden; }
+.bar-inner { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--green), var(--yellow)); transition: width 1s linear, background .5s; }
+#timer-display { font-family: 'Bangers', cursive; font-size: 1.5rem; min-width: 40px; text-align: right; transition: color .3s; }
+#timer-display.urgent { color: var(--red); animation: pulse .5s infinite alternate; }
+@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+
+.poke-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+  padding: 20px; text-align: center; position: relative;
+  min-height: 190px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.poke-card::before { content: ''; position: absolute; top: -40px; right: -40px; width: 140px; height: 140px; border-radius: 50%; background: #ffffff06; }
+.poke-id { position: absolute; top: 12px; left: 16px; font-family: 'Bangers', cursive; font-size: .95rem; color: #ffffff33; }
+.poke-img {
+  width: 150px; height: 150px; object-fit: contain; image-rendering: pixelated;
+  filter: brightness(0) drop-shadow(0 6px 20px #000000bb);
+  transition: filter .6s ease, transform .3s;
+}
+.poke-img.revealed { filter: drop-shadow(0 6px 20px #00000088); }
+.poke-img:hover { transform: scale(1.04) rotate(-2deg); }
+
+#result-msg {
+  font-family: 'Bangers', cursive; font-size: 1.6rem; letter-spacing: 2px;
+  text-align: center; min-height: 2.2rem; transition: opacity .3s;
+}
+
+/* QCM buttons */
+.qcm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qcm-btn {
+  background: var(--card); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 12px; font-family: 'Nunito', sans-serif; font-size: .97rem; font-weight: 800;
+  color: var(--white); cursor: pointer; text-align: center; line-height: 1.2;
+  transition: all .2s; position: relative; overflow: hidden;
+}
+.qcm-btn:hover:not(:disabled) { border-color: var(--yellow); transform: translateY(-2px); box-shadow: 0 6px 20px #00000055; }
+.qcm-btn.correct { background: var(--green); border-color: var(--green); animation: pop .35s ease; }
+.qcm-btn.wrong { background: var(--wrong); border-color: var(--wrong); animation: shake .4s ease; }
+.qcm-btn:disabled { cursor: default; }
+@keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }
+
+/* Free input */
+.input-wrap { display: flex; gap: 10px; }
+#pokemon-input {
+  flex: 1; background: var(--card); border: 2px solid var(--border); border-radius: 14px;
+  padding: 13px 18px; font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 700;
+  color: var(--white); outline: none; transition: border-color .2s, box-shadow .2s, background .3s;
+}
+#pokemon-input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px #F4D03F22; }
+#pokemon-input.correct { border-color: var(--green); background: #27ae6022; }
+#pokemon-input.wrong { border-color: var(--wrong); background: #c0392b22; animation: shake .4s ease; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+#submit-btn {
+  background: var(--yellow); border: none; border-radius: 14px; padding: 13px 20px;
+  font-family: 'Bangers', cursive; font-size: 1.15rem; letter-spacing: 1px; color: var(--dark);
+  cursor: pointer; transition: transform .15s, box-shadow .15s, opacity .2s;
+}
+#submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px #F4D03F55; }
+#submit-btn:disabled { opacity: .4; cursor: default; transform: none; box-shadow: none; }
+
+#next-btn {
+  display: none; width: 100%; padding: 15px; border: none; border-radius: 14px;
+  background: var(--blue); color: var(--white);
+  font-family: 'Bangers', cursive; font-size: 1.4rem; letter-spacing: 2px;
+  cursor: pointer; transition: transform .15s, box-shadow .15s; box-shadow: 0 4px 16px #2A75BB55;
+}
+#next-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px #2A75BB77; }
+
+/* ===== RESULTS ===== */
+#results { display: none; flex-direction: column; align-items: center; gap: 18px; }
+.results-title { font-family: 'Bangers', cursive; font-size: 3rem; letter-spacing: 4px; color: var(--yellow); text-shadow: 4px 4px 0 var(--red); text-align: center; }
+.podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; width: 100%; margin: 4px 0; }
+.podium-col { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
+.podium-bar { width: 100%; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; font-family: 'Bangers', cursive; font-size: 1.5rem; color: white; }
+.podium-name { font-weight: 800; font-size: .82rem; text-align: center; color: #ccc; }
+.podium-pts { font-family: 'Bangers', cursive; font-size: 1.2rem; color: var(--yellow); }
+.rank-emoji { font-size: 1.4rem; }
+.full-results { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.result-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; }
+.result-row:hover { background: #ffffff08; }
+.result-pos { font-family: 'Bangers', cursive; font-size: 1.3rem; min-width: 30px; color: #888; }
+.result-pos.gold { color: #FFD700; } .result-pos.silver { color: #C0C0C0; } .result-pos.bronze { color: #CD7F32; }
+.result-dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+.result-name { flex: 1; font-weight: 800; font-size: .95rem; }
+.result-frac { font-size: .8rem; color: #666; }
+.result-pct { font-family: 'Bangers', cursive; font-size: 1.4rem; color: var(--yellow); }
+.play-again-btn {
+  width: 100%; padding: 18px; border: none; border-radius: 18px;
+  background: linear-gradient(135deg, var(--red), #ff6b35); color: var(--white);
+  font-family: 'Bangers', cursive; font-size: 1.8rem; letter-spacing: 3px;
+  cursor: pointer; transition: transform .2s, box-shadow .2s; box-shadow: 0 6px 24px #E3350D66;
+}
+.play-again-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px #E3350D88; }
+
+/* Loader */
+.loader-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px; color: #888; }
+.pokeball { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(180deg, var(--red) 50%, white 50%); border: 4px solid #333; position: relative; animation: spin 1s linear infinite; }
+.pokeball::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #333; transform: translateY(-50%); }
+.pokeball::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 14px; height: 14px; background: white; border-radius: 50%; border: 4px solid #333; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Confetti */
+.confetti-container { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 99; }
+.confetti-piece { position: absolute; top: -20px; animation: confettiFall linear forwards; border-radius: 2px; }
+@keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>🎮 PokéQuiz</h1>
+    <p>Multijoueur • En Français</p>
+  </div>
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div id="loading-wrap" class="loader-wrap">
+      <div class="pokeball"></div>
+      <div>Chargement des Pokémon...</div>
+    </div>
+
+    <div id="setup-form" style="display:none; flex-direction:column; gap:20px;">
+
+      <div class="setup-section">
+        <h2>👥 Nombre de Joueurs</h2>
+        <div class="stepper">
+          <button class="stepper-btn" id="players-down">−</button>
+          <div class="stepper-val" id="players-val">2</div>
+          <button class="stepper-btn" id="players-up">+</button>
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <h2>✏️ Noms des Joueurs</h2>
+        <div class="player-inputs" id="player-inputs"></div>
+      </div>
+
+      <div class="setup-section">
+        <h2>🔢 Pokémon par Joueur</h2>
+        <div class="round-options" id="round-opts">
+          <div class="round-opt" data-val="5">5</div>
+          <div class="round-opt active" data-val="10">10</div>
+          <div class="round-opt" data-val="15">15</div>
+          <div class="round-opt" data-val="20">20</div>
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <h2>🎮 Mode de Jeu</h2>
+        <div class="mode-options" id="game-mode-opts">
+          <div class="mode-opt active" data-mode="qcm">
+            <div class="mode-icon">🔤</div>
+            <div class="mode-title">QCM</div>
+            <div class="mode-desc">4 propositions, 1 seule bonne réponse</div>
+          </div>
+          <div class="mode-opt" data-mode="libre">
+            <div class="mode-icon">⌨️</div>
+            <div class="mode-title">Saisie libre</div>
+            <div class="mode-desc">Tapez le nom du Pokémon</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <h2>🖼️ Image</h2>
+        <div class="mode-options" id="image-mode-opts">
+          <div class="mode-opt active" data-imgmode="shadow">
+            <div class="mode-icon">🕵️</div>
+            <div class="mode-title">Silhouette</div>
+            <div class="mode-desc">Image assombrie, devinez sans voir</div>
+          </div>
+          <div class="mode-opt" data-imgmode="real">
+            <div class="mode-icon">🌈</div>
+            <div class="mode-title">Image réelle</div>
+            <div class="mode-desc">Le Pokémon visible dès le départ</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="start-btn" id="start-btn">⚡ COMMENCER !</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="game">
+    <div class="turn-banner">
+      <div class="turn-who">
+        <div class="turn-dot" id="turn-dot"></div>
+        <div class="turn-name" id="turn-name">Joueur</div>
+      </div>
+      <div class="turn-meta">
+        <div class="turn-round" id="turn-round">Pokémon 1/10</div>
+        <div class="mode-badge" id="mode-badge">QCM</div>
+      </div>
+    </div>
+
+    <div class="scoreboard" id="scoreboard"></div>
+
+    <div class="timer-wrap">
+      <span class="timer-label">⏱</span>
+      <div class="bar-outer"><div class="bar-inner" id="timer-bar" style="width:100%"></div></div>
+      <span id="timer-display">15s</span>
+    </div>
+
+    <div class="poke-card" id="poke-card">
+      <div class="pokeball"></div>
+    </div>
+
+    <div id="result-msg"></div>
+
+    <!-- QCM mode -->
+    <div id="qcm-area" style="display:none;">
+      <div class="qcm-grid" id="qcm-grid"></div>
+    </div>
+
+    <!-- Free input mode -->
+    <div id="input-area" style="display:none;">
+      <div class="input-wrap">
+        <input type="text" id="pokemon-input" placeholder="Entrez le nom du Pokémon..." autocomplete="off" spellcheck="false" />
+        <button id="submit-btn">OK ✓</button>
+      </div>
+    </div>
+
+    <button id="next-btn">SUIVANT ➜</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <div class="results-title">🏆 RÉSULTATS</div>
+    <div class="podium" id="podium"></div>
+    <div class="full-results" id="full-results"></div>
+    <button class="play-again-btn" id="play-again-btn">🔄 REJOUER</button>
+  </div>
+</div>
+
+<div class="confetti-container" id="confetti"></div>
+
+<script>
+// ===== CONFIG =====
+const MAX_TIME = 10;
+const COLORS = ['#E3350D','#2A75BB','#27ae60','#9b59b6','#e67e22','#1abc9c','#e91e63','#ff9800'];
+
+// ===== STATE =====
+let allPokemon = [];
+let frCache = {};
+let players = [];
+let numPlayers = 2;
+let pokemonPerPlayer = 10;
+let gameMode = 'qcm'; // 'qcm' | 'libre'
+let imageMode = 'shadow'; // 'shadow' | 'real'
+let globalTurn = 0;
+let totalTurns = 0;
+let currentPlayerIdx = 0;
+let currentRound = 0;
+let currentPokemon = null;
+let currentOptions = []; // for QCM
+let answered = false;
+let timerInterval = null;
+let questionStartTime = 0;
+let timeLeft = MAX_TIME;
+let decks = [];
+
+// ===== LOAD =====
+async function loadPokemon() {
+  const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
+  const data = await res.json();
+  allPokemon = data.results.map((p, i) => ({
+    id: i + 1,
+    name: p.name,
+    img: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${i + 1}.png`
+  }));
+  document.getElementById('loading-wrap').style.display = 'none';
+  document.getElementById('setup-form').style.display = 'flex';
+  renderPlayerInputs();
+}
+
+async function getFrName(id) {
+  if (frCache[id]) return frCache[id];
+  const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`);
+  const data = await res.json();
+  const fr = data.names.find(n => n.language.name === 'fr');
+  const name = fr ? fr.name : (data.names.find(n => n.language.name === 'en')?.name || String(id));
+  frCache[id] = name;
+  return name;
+}
+
+// ===== SETUP =====
+function renderPlayerInputs() {
+  const container = document.getElementById('player-inputs');
+  const existing = [...container.querySelectorAll('.player-name-input')].map(i => i.value);
+  container.innerHTML = '';
+  for (let i = 0; i < numPlayers; i++) {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    const dot = document.createElement('div');
+    dot.className = 'player-dot';
+    dot.style.background = COLORS[i];
+    const input = document.createElement('input');
+    input.className = 'player-name-input';
+    input.type = 'text';
+    input.placeholder = `Joueur ${i + 1}`;
+    input.value = existing[i] || '';
+    row.appendChild(dot);
+    row.appendChild(input);
+    container.appendChild(row);
+  }
+}
+
+document.getElementById('players-down').onclick = () => {
+  if (numPlayers > 1) { numPlayers--; document.getElementById('players-val').textContent = numPlayers; renderPlayerInputs(); }
+};
+document.getElementById('players-up').onclick = () => {
+  if (numPlayers < 8) { numPlayers++; document.getElementById('players-val').textContent = numPlayers; renderPlayerInputs(); }
+};
+document.getElementById('round-opts').addEventListener('click', e => {
+  const opt = e.target.closest('.round-opt');
+  if (!opt) return;
+  document.querySelectorAll('.round-opt').forEach(o => o.classList.remove('active'));
+  opt.classList.add('active');
+  pokemonPerPlayer = parseInt(opt.dataset.val);
+});
+document.getElementById('game-mode-opts').addEventListener('click', e => {
+  const opt = e.target.closest('.mode-opt');
+  if (!opt) return;
+  document.querySelectorAll('#game-mode-opts .mode-opt').forEach(o => o.classList.remove('active'));
+  opt.classList.add('active');
+  gameMode = opt.dataset.mode;
+});
+document.getElementById('image-mode-opts').addEventListener('click', e => {
+  const opt = e.target.closest('.mode-opt');
+  if (!opt) return;
+  document.querySelectorAll('#image-mode-opts .mode-opt').forEach(o => o.classList.remove('active'));
+  opt.classList.add('active');
+  imageMode = opt.dataset.imgmode;
+});
+document.getElementById('start-btn').onclick = startGame;
+
+// ===== START =====
+function pickRandom(arr, n) {
+  const copy = [...arr];
+  const out = [];
+  for (let i = 0; i < n && copy.length; i++) {
+    const idx = Math.floor(Math.random() * copy.length);
+    out.push(copy.splice(idx, 1)[0]);
+  }
+  return out;
+}
+
+async function startGame() {
+  const inputs = document.querySelectorAll('.player-name-input');
+  players = Array.from({ length: numPlayers }, (_, i) => ({
+    name: inputs[i]?.value.trim() || `Joueur ${i + 1}`,
+    color: COLORS[i],
+    score: 0
+  }));
+  decks = players.map(() => pickRandom(allPokemon, pokemonPerPlayer));
+  globalTurn = 0;
+  totalTurns = numPlayers * pokemonPerPlayer;
+
+  const btn = document.getElementById('start-btn');
+  btn.textContent = 'Chargement...';
+  btn.disabled = true;
+
+  // Pre-fetch all French names
+  const allIds = [...new Set(decks.flat().map(p => p.id))];
+  await Promise.all(allIds.map(id => getFrName(id)));
+
+  document.getElementById('setup').style.display = 'none';
+  const gameEl = document.getElementById('game');
+  gameEl.style.display = 'flex';
+  gameEl.style.flexDirection = 'column';
+
+  renderScoreboard();
+  loadQuestion();
+}
+
+// ===== SCOREBOARD =====
+function renderScoreboard() {
+  document.getElementById('scoreboard').innerHTML = players.map((p, i) => `
+    <div class="score-chip ${i === currentPlayerIdx ? 'active-player' : ''}">
+      <div class="chip-dot" style="background:${p.color}"></div>
+      <div class="chip-name">${p.name}</div>
+      <div class="chip-score">${Number.isInteger(p.score) ? p.score : p.score.toFixed(1)}</div>
+    </div>
+  `).join('');
+}
+
+// ===== QUESTION =====
+async function loadQuestion() {
+  answered = false;
+  clearInterval(timerInterval);
+  document.getElementById('result-msg').textContent = '';
+  document.getElementById('next-btn').style.display = 'none';
+
+  currentPlayerIdx = globalTurn % numPlayers;
+  currentRound = Math.floor(globalTurn / numPlayers);
+
+  const player = players[currentPlayerIdx];
+  const pokemon = decks[currentPlayerIdx][currentRound];
+  const nameFr = await getFrName(pokemon.id);
+  currentPokemon = { ...pokemon, nameFr };
+
+  // Turn banner
+  document.getElementById('turn-dot').style.background = player.color;
+  document.getElementById('turn-name').textContent = player.name;
+  document.getElementById('turn-round').textContent =
+    `Pokémon ${currentRound + 1}/${pokemonPerPlayer} — ${player.name}`;
+  const badge = document.getElementById('mode-badge');
+  badge.textContent = gameMode === 'qcm' ? '🔤 QCM' : '⌨️ Saisie libre';
+  badge.className = 'mode-badge ' + gameMode;
+
+  renderScoreboard();
+
+  // Pokémon image
+  const imgClass = imageMode === 'real' ? 'poke-img revealed' : 'poke-img';
+  document.getElementById('poke-card').innerHTML = `
+    <span class="poke-id">#${String(currentPokemon.id).padStart(3, '0')}</span>
+    <img class="${imgClass}" src="${currentPokemon.img}" alt="?" />
+  `;
+
+  if (gameMode === 'qcm') {
+    await renderQCM();
+  } else {
+    renderInput(player);
+  }
+
+  startTimer();
+}
+
+// ===== QCM MODE =====
+async function renderQCM() {
+  document.getElementById('qcm-area').style.display = 'block';
+  document.getElementById('input-area').style.display = 'none';
+  document.getElementById('qcm-grid').innerHTML = '<div style="color:#888;text-align:center;padding:10px;grid-column:span 2">Chargement...</div>';
+
+  // Pick 3 random wrong answers
+  const wrong = pickRandom(
+    allPokemon.filter(p => p.id !== currentPokemon.id),
+    3
+  );
+
+  // Fetch French names for all wrong options (correct one already cached)
+  await Promise.all(wrong.map(p => getFrName(p.id)));
+
+  const options = [currentPokemon, ...wrong].map(p => ({
+    id: p.id,
+    nameFr: frCache[p.id] || p.name
+  }));
+
+  // Shuffle
+  currentOptions = options.sort(() => Math.random() - 0.5);
+
+  document.getElementById('qcm-grid').innerHTML = currentOptions.map(opt => `
+    <button class="qcm-btn" data-id="${opt.id}" onclick="handleQCM(${opt.id})">
+      ${opt.nameFr}
+    </button>
+  `).join('');
+}
+
+function handleQCM(pokemonId) {
+  if (answered) return;
+  const isCorrect = pokemonId === currentPokemon.id;
+
+  // Highlight buttons
+  document.querySelectorAll('.qcm-btn').forEach(btn => {
+    btn.disabled = true;
+    const btnId = parseInt(btn.dataset.id);
+    if (btnId === currentPokemon.id) btn.classList.add('correct');
+    else if (btnId === pokemonId && !isCorrect) btn.classList.add('wrong');
+  });
+
+  processAnswer(isCorrect, false);
+}
+
+// ===== FREE INPUT MODE =====
+function renderInput(player) {
+  document.getElementById('qcm-area').style.display = 'none';
+  document.getElementById('input-area').style.display = 'block';
+
+  const input = document.getElementById('pokemon-input');
+  const submitBtn = document.getElementById('submit-btn');
+  input.value = '';
+  input.className = '';
+  input.disabled = false;
+  input.placeholder = `${player.name}, c'est quel Pokémon ?`;
+  submitBtn.disabled = false;
+  submitBtn.onclick = submitFreeAnswer;
+  input.onkeydown = e => { if (e.key === 'Enter') submitFreeAnswer(); };
+  setTimeout(() => input.focus(), 50);
+}
+
+function normalize(str) {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function submitFreeAnswer() {
+  if (answered) return;
+  const val = document.getElementById('pokemon-input').value.trim();
+  if (!val) return;
+  const isCorrect = normalize(val) === normalize(currentPokemon.nameFr);
+  const input = document.getElementById('pokemon-input');
+  const submitBtn = document.getElementById('submit-btn');
+  input.disabled = true;
+  submitBtn.disabled = true;
+  input.classList.add(isCorrect ? 'correct' : 'wrong');
+  processAnswer(isCorrect, false);
+}
+
+// ===== TIMER =====
+function startTimer() {
+  timeLeft = MAX_TIME;
+  questionStartTime = performance.now();
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) { clearInterval(timerInterval); if (!answered) processAnswer(false, true); }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const display = document.getElementById('timer-display');
+  const bar = document.getElementById('timer-bar');
+  if (!display || !bar) return;
+  display.textContent = timeLeft + 's';
+  bar.style.width = (timeLeft / MAX_TIME * 100) + '%';
+  const urgent = timeLeft <= 5;
+  bar.style.background = urgent
+    ? 'linear-gradient(90deg, #c0392b, #ff8c00)'
+    : 'linear-gradient(90deg, #27ae60, #F4D03F)';
+  display.classList.toggle('urgent', urgent);
+}
+
+// ===== PROCESS ANSWER =====
+function processAnswer(isCorrect, timedOut) {
+  answered = true;
+  clearInterval(timerInterval);
+
+  const player = players[currentPlayerIdx];
+  const elapsed = (performance.now() - questionStartTime) / 1000;
+  const timeUsed = Math.min(elapsed, MAX_TIME);
+  const rawPoints = isCorrect ? Math.max(0, (MAX_TIME - timeUsed) / MAX_TIME * 100) : 0;
+  const pointsEarned = Math.round(rawPoints * 100) / 100; // keep 2 decimals
+  player.score = Math.round((player.score + pointsEarned) * 100) / 100;
+
+  // Reveal Pokémon (only animate if shadow mode — real mode already visible)
+  const img = document.querySelector('.poke-img');
+  if (img && imageMode === 'shadow') img.classList.add('revealed');
+
+  // If timed out in QCM: highlight correct answer
+  if (timedOut && gameMode === 'qcm') {
+    document.querySelectorAll('.qcm-btn').forEach(btn => {
+      btn.disabled = true;
+      if (parseInt(btn.dataset.id) === currentPokemon.id) btn.classList.add('correct');
+    });
+  }
+  // If timed out in libre: show red border on input
+  if (timedOut && gameMode === 'libre') {
+    const input = document.getElementById('pokemon-input');
+    input.disabled = true;
+    document.getElementById('submit-btn').disabled = true;
+    input.classList.add('wrong');
+  }
+
+  const msg = document.getElementById('result-msg');
+  if (timedOut) {
+    msg.textContent = `⏰ Temps ! C'était ${currentPokemon.nameFr}`;
+    msg.style.color = '#e67e22';
+  } else if (isCorrect) {
+    const displayPts = Number.isInteger(pointsEarned) ? pointsEarned : pointsEarned.toFixed(2);
+    msg.textContent = `✅ +${displayPts} pts — Bravo ${player.name} !`;
+    msg.style.color = '#27ae60';
+  } else {
+    msg.textContent = `❌ C'était ${currentPokemon.nameFr} !`;
+    msg.style.color = '#c0392b';
+  }
+
+  renderScoreboard();
+
+  const nextBtn = document.getElementById('next-btn');
+  nextBtn.style.display = 'block';
+  globalTurn++;
+
+  if (globalTurn >= totalTurns) {
+    nextBtn.textContent = '🏆 VOIR LES RÉSULTATS';
+    nextBtn.onclick = showResults;
+  } else {
+    const nextPlayerIdx = globalTurn % numPlayers;
+    nextBtn.textContent = `➜ Au tour de ${players[nextPlayerIdx].name}`;
+    nextBtn.onclick = loadQuestion;
+  }
+}
+
+// ===== RESULTS =====
+function showResults() {
+  document.getElementById('game').style.display = 'none';
+  const resultsEl = document.getElementById('results');
+  resultsEl.style.display = 'flex';
+  resultsEl.style.flexDirection = 'column';
+
+  const sorted = [...players].sort((a, b) => b.score - a.score);
+
+  const podiumEl = document.getElementById('podium');
+  if (sorted.length === 1) {
+    const p = sorted[0];
+    const pct = Math.round(p.score / (pokemonPerPlayer * 100) * 100);
+    podiumEl.innerHTML = `
+      <div class="podium-col" style="max-width:200px;">
+        <div class="rank-emoji">🏅</div>
+        <div class="podium-name">${p.name}</div>
+        <div class="podium-pts">${Number.isInteger(p.score) ? p.score : p.score.toFixed(2)} pts</div>
+        <div class="podium-bar" style="height:160px; background:${p.color}">
+          <span style="text-shadow:1px 1px 3px #00000099">${pct}%</span>
+        </div>
+      </div>
+    `;
+  } else if (sorted.length >= 3) {
+    const order = [sorted[1], sorted[0], sorted[2]];
+    const heights = [120, 165, 90];
+    const emojis = ['🥈', '🥇', '🥉'];
+    podiumEl.innerHTML = order.map((p, i) => `
+      <div class="podium-col">
+        <div class="rank-emoji">${emojis[i]}</div>
+        <div class="podium-name">${p.name}</div>
+        <div class="podium-pts">${Number.isInteger(p.score) ? p.score : p.score.toFixed(2)} pts</div>
+        <div class="podium-bar" style="height:${heights[i]}px; background:${p.color}">
+          <span style="text-shadow:1px 1px 3px #00000099">${Math.round(p.score / (pokemonPerPlayer * 100) * 100)}%</span>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    const order = [sorted[1], sorted[0]];
+    const heights = [110, 160];
+    const emojis = ['🥈', '🥇'];
+    podiumEl.innerHTML = order.map((p, i) => `
+      <div class="podium-col">
+        <div class="rank-emoji">${emojis[i]}</div>
+        <div class="podium-name">${p.name}</div>
+        <div class="podium-pts">${Number.isInteger(p.score) ? p.score : p.score.toFixed(2)} pts</div>
+        <div class="podium-bar" style="height:${heights[i]}px; background:${p.color}">
+          <span style="text-shadow:1px 1px 3px #00000099">${Math.round(p.score / (pokemonPerPlayer * 100) * 100)}%</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const posClass = ['gold', 'silver', 'bronze'];
+  const posLabel = ['🥇', '🥈', '🥉'];
+  document.getElementById('full-results').innerHTML = sorted.map((p, i) => `
+    <div class="result-row">
+      <div class="result-pos ${posClass[i] || ''}">${posLabel[i] || `${i + 1}.`}</div>
+      <div class="result-dot" style="background:${p.color}"></div>
+      <div class="result-name">${p.name}</div>
+      <div class="result-frac">${Number.isInteger(p.score) ? p.score : p.score.toFixed(2)} pts</div>
+      <div class="result-pct">${Math.round(p.score / (pokemonPerPlayer * 100) * 100)}%</div>
+    </div>
+  `).join('');
+
+  spawnConfetti();
+}
+
+document.getElementById('play-again-btn').onclick = () => {
+  clearConfetti();
+  players = [];
+  globalTurn = 0;
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('setup').style.display = 'flex';
+  const btn = document.getElementById('start-btn');
+  btn.textContent = '⚡ COMMENCER !';
+  btn.disabled = false;
+  renderPlayerInputs();
+};
+
+// ===== CONFETTI =====
+function spawnConfetti() {
+  const container = document.getElementById('confetti');
+  container.innerHTML = '';
+  const colors = ['#E3350D','#F4D03F','#2A75BB','#27ae60','#9b59b6','#fff'];
+  for (let i = 0; i < 90; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left: ${Math.random() * 100}vw;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      width: ${7 + Math.random() * 9}px;
+      height: ${7 + Math.random() * 9}px;
+      animation-duration: ${2.5 + Math.random() * 3}s;
+      animation-delay: ${Math.random() * 2}s;
+    `;
+    container.appendChild(el);
+  }
+}
+function clearConfetti() { document.getElementById('confetti').innerHTML = ''; }
+
+// ===== INIT =====
+loadPokemon().catch(err => {
+  document.getElementById('loading-wrap').innerHTML =
+    `<div style="color:var(--red);text-align:center">❌ Erreur de chargement.<br>${err.message}</div>`;
+});
+</script>
+</body>
+</html>
