@@ -48,11 +48,9 @@
 
   /* HEADER */
   header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 32px; }
-  .logo { font-family: var(--ff-title); font-size: 2.6rem; letter-spacing: .1em; line-height: 1; color: var(--accent); }
+  .logo { font-family: var(--ff-title); font-size: 2.6rem; letter-spacing: .1em; line-height: 1; color: var(--accent); text-decoration: none; }
   .logo em { color: var(--text); font-style: normal; }
-  .hud { display: flex; gap: 20px; }
-  .hud-stat { font-family: var(--ff-mono); font-size: .68rem; color: var(--muted); letter-spacing: .1em; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-  .hud-stat strong { font-size: 1.1rem; color: var(--text); font-weight: 400; font-family: var(--ff-title); letter-spacing: .02em; }
+
 
   /* CENTER */
   .center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; }
@@ -229,11 +227,7 @@
 
 <div class="shell">
   <header>
-    <div class="logo">EAR<em>WORM</em></div>
-    <div class="hud">
-      <div class="hud-stat"><strong id="streakVal">0</strong>STREAK</div>
-      <div class="hud-stat"><strong id="scoreVal">0</strong>SCORE</div>
-    </div>
+    <a href="../index.html" class="logo">EAR<em>WORM</em></a>
   </header>
 
   <div class="center">
@@ -300,7 +294,7 @@ const POINTS = [1000, 800, 600, 400, 200, 50];
 const CIRC   = 307.9;
 
 let songs = typeof SONGS !== 'undefined' ? shuffle([...SONGS]) : [];
-let songIdx = 0, round = 0, score = 0, streak = 0, done = false;
+let songIdx = 0, round = 0, done = false;
 let acIdx = -1;
 let replayPlayingBtn = null;
 
@@ -592,24 +586,22 @@ function submitGuess() {
 function win() {
   done = true;
   stopClip();
-  const pts = POINTS[round] + (streak > 0 ? Math.min(streak * 30, 300) : 0);
-  score += pts; streak++;
+
   addToHistory(round, false);
   document.getElementById('playerBlock').style.display = 'none';
   revealMeta();
   showResult(true, pts);
-  updateHUD(); flashRing('win');
+  flashRing('win');
   setInputEnabled(false); showNext();
 }
 
 function lose() {
   done = true;
   stopClip();
-  streak = 0;
   document.getElementById('playerBlock').style.display = 'none';
   revealMeta();
   showResult(false, 0);
-  updateHUD(); flashRing('lose');
+  flashRing('lose');
   setInputEnabled(false); showNext();
 }
 
@@ -644,17 +636,14 @@ function showResult(isWin, pts) {
   document.getElementById('resultSub').textContent   = isWin
     ? `Guessed on clip ${round + 1} — ${CLIPS[round]}s`
     : 'Better luck next time';
-  document.getElementById('resultPts').textContent   = isWin ? `+${pts}` : '—';
+  document.getElementById('resultPts').textContent   = '';
 }
 function hideResult() { document.getElementById('resultBanner').className = 'result-banner'; }
 function showNext()   { document.getElementById('btnNext').classList.add('visible'); }
 function setInputEnabled(on) {
   ['guessInput','btnGuess','btnSkip'].forEach(id => document.getElementById(id).disabled = !on);
 }
-function updateHUD() {
-  document.getElementById('scoreVal').textContent  = score;
-  document.getElementById('streakVal').textContent = streak;
-}
+
 function flashRing(type) {
   const r = document.getElementById('playRing');
   r.classList.remove('flash-win','flash-lose');
@@ -668,8 +657,7 @@ function endGame() {
     <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
       <div style="font-family:var(--ff-title);font-size:5rem;color:var(--accent);letter-spacing:.1em">GAME OVER</div>
       <div style="font-family:var(--ff-mono);font-size:.75rem;color:var(--muted);letter-spacing:.15em">ALL ${songs.length} SONGS PLAYED</div>
-      <div style="font-family:var(--ff-title);font-size:4rem;color:var(--text);margin-top:20px">${score}</div>
-      <div style="font-family:var(--ff-mono);font-size:.65rem;color:var(--muted);letter-spacing:.12em">FINAL SCORE</div>
+
       <button onclick="location.reload()"
         style="margin-top:28px;padding:14px 36px;background:var(--accent);color:#09090b;border:none;
                border-radius:10px;font-family:var(--ff-title);font-size:1.2rem;letter-spacing:.1em;cursor:pointer">

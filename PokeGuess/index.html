@@ -242,8 +242,7 @@ body::before {
 <body>
 <div class="wrap">
   <div class="header">
-    <h1>🎮 PokéQuiz</h1>
-    <p>Multijoueur • En Français</p>
+    <h1 onclick="goHome()" style="cursor:pointer;user-select:none;">🎮 PokéQuiz</h1>
   </div>
 
   <!-- SETUP -->
@@ -825,6 +824,21 @@ function spawnConfetti() {
   }
 }
 function clearConfetti() { document.getElementById('confetti').innerHTML = ''; }
+
+// ===== HOME =====
+function goHome() {
+  clearInterval(timerInterval);
+  clearConfetti();
+  players = [];
+  globalTurn = 0;
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('setup').style.display = 'flex';
+  const btn = document.getElementById('start-btn');
+  btn.textContent = '⚡ COMMENCER !';
+  btn.disabled = false;
+  renderPlayerInputs();
+}
 
 // ===== INIT =====
 loadPokemon().catch(err => {

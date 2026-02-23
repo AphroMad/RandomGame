@@ -9,7 +9,11 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Courier New', monospace; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; padding: 40px 20px; }
         h1 { font-size: 1.4rem; font-weight: normal; letter-spacing: 0.2em; text-transform: uppercase; color: #fff; margin-bottom: 8px; }
+        .home-link { text-decoration: none; display: inline-block; margin-bottom: 6px; opacity: 0.85; transition: opacity 0.15s; }
+        .home-link:hover { opacity: 1; }
+        .home-link:hover h1 { text-decoration: underline; text-underline-offset: 4px; }
         .subtitle { font-size: 0.75rem; color: #555; letter-spacing: 0.1em; margin-bottom: 40px; }
+        .subtitle.warning { color: #f59e0b; }
         .file-section { margin-bottom: 48px; }
         .file-title { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #444; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1e1e1e; }
         .groups { display: flex; flex-direction: column; gap: 2px; }
@@ -41,8 +45,10 @@
     </style>
 </head>
 <body>
-    <h1>Fake Bandle - Pierre Marsaa</h1>
-    <p class="subtitle">only 1 song for testing purposes</p>
+    <a href="/" class="home-link">
+        <h1>Fake Bandle</h1>
+    </a>
+    <p class="subtitle warning">⚠ only 1 song for testing purposes</p>
     <div id="app"><p class="loading">Loading...</p></div>
     <div id="bottom-bar">
         <div id="now-playing">—</div>
