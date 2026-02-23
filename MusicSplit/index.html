@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Bandle - Pierre Marsaa</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi/build/Midi.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', monospace; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; padding: 40px 20px; }
+        h1 { font-size: 1.4rem; font-weight: normal; letter-spacing: 0.2em; text-transform: uppercase; color: #fff; margin-bottom: 8px; }
+        .subtitle { font-size: 0.75rem; color: #555; letter-spacing: 0.1em; margin-bottom: 40px; }
+        .file-section { margin-bottom: 48px; }
+        .file-title { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #444; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1e1e1e; }
+        .groups { display: flex; flex-direction: column; gap: 2px; }
+        .group-row { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #161616; border: 1px solid #1e1e1e; transition: border-color 0.2s; }
+        .group-row.playing { border-color: #4ade80; background: #0d1f14; }
+        .group-name { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #888; width: 140px; flex-shrink: 0; }
+        .group-row.playing .group-name { color: #4ade80; }
+        .instruments { font-size: 0.7rem; color: #444; flex: 1; }
+        .group-row.playing .instruments { color: #666; }
+        .btn { font-family: 'Courier New', monospace; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 6px 14px; border: 1px solid #333; background: transparent; color: #666; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+        .btn:hover { border-color: #4ade80; color: #4ade80; }
+        .group-row.playing .btn { border-color: #4ade80; color: #4ade80; }
+        .group-row.playing .btn:hover { background: #4ade80; color: #000; }
+        .indicator { width: 6px; height: 6px; border-radius: 50%; background: #222; flex-shrink: 0; }
+        .group-row.playing .indicator { background: #4ade80; box-shadow: 0 0 6px #4ade80; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .loading { font-size: 0.75rem; color: #444; }
+        #app { padding-bottom: 70px; }
+        #bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #1e1e1e; padding: 12px 24px; display: flex; align-items: center; gap: 16px; z-index: 100; }
+        #now-playing { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: #444; width: 140px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #now-playing.active { color: #4ade80; }
+        #progress-wrap { flex: 1; height: 3px; background: #1e1e1e; position: relative; cursor: pointer; border-radius: 2px; }
+        #progress-wrap::before { content: ''; position: absolute; top: -10px; bottom: -10px; left: 0; right: 0; }
+        #progress-bar { height: 100%; background: #4ade80; width: 0%; transition: width 0.1s linear; border-radius: 2px; pointer-events: none; }
+        #scrubber { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; border-radius: 50%; background: #4ade80; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+        #progress-wrap:hover #scrubber { opacity: 1; }
+        #time-display { font-size: 0.65rem; letter-spacing: 0.1em; color: #444; width: 90px; text-align: right; flex-shrink: 0; }
+        #time-display.active { color: #4ade80; }
+    </style>
+</head>
+<body>
+    <h1>Fake Bandle - Pierre Marsaa</h1>
+    <p class="subtitle">only 1 song for testing purposes</p>
+    <div id="app"><p class="loading">Loading...</p></div>
+    <div id="bottom-bar">
+        <div id="now-playing">—</div>
+        <div id="progress-wrap"><div id="progress-bar"></div><div id="scrubber"></div></div>
+        <div id="time-display">00:00 / 00:00</div>
+    </div>
+
+<script>
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function getRole(program, isPercussion) {
+    if (isPercussion) return "Drums"
+    if (program >= 32 && program <= 39) return "Bass"
+    if (program >= 24 && program <= 31) return "Guitar"
+    if (program >= 40 && program <= 46) return "Strings"
+    if (program === 47) return "Percussion"
+    if (program >= 48 && program <= 51) return "Ensemble"
+    if (program >= 52 && program <= 54) return "Choir"
+    if (program === 55) return "Percussion"
+    if (program >= 56 && program <= 71) return "Brass/Wind"
+    if (program >= 80 && program <= 95) return "Synth"
+    if (program >= 0 && program <= 23) return "Keys/Piano"
+    return "Other"
+}
+
+function groupTracksByRole(tracks) {
+    const groups = {}
+    tracks.filter(t => t.notes.length > 0).forEach(track => {
+        const role = getRole(track.instrument.number, track.instrument.percussion)
+        if (!groups[role]) groups[role] = []
+        groups[role].push(track.instrument.name)
+    })
+    return groups
+}
+
+function formatTime(s) {
+    return `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`
+}
+
+function midiToFreq(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12)
+}
+
+function getOscType(groupName, isPerc) {
+    if (isPerc) return 'sine'
+    if (groupName === 'Brass/Wind') return 'triangle'  // sawtooth was too harsh
+    if (groupName === 'Strings' || groupName === 'Ensemble' || groupName === 'Choir') return 'sine'
+    if (groupName === 'Bass') return 'triangle'
+    return 'sine'
+}
+
+// ── PLAYER ─────────────────────────────────────────────────────────────────
+let ctx = null
+let nodes = []
+let ticker = null
+let playStart = 0
+let totalDur = 0
+let trackStart = 0
+let currentTracks = []
+let currentGroup = null
+let onTickFn = null
+let onStopFn = null
+
+function killAll() {
+    clearInterval(ticker)
+    ticker = null
+    nodes.forEach(n => { try { n.stop() } catch(e) {} try { n.disconnect() } catch(e) {} })
+    nodes = []
+}
+
+function stopAll(cb) {
+    killAll()
+    if (cb) cb()
+}
+
+function scheduleNotes(tracks, groupName, seekOffset) {
+    const now = ctx.currentTime + 0.1
+    playStart = now - seekOffset
+
+    tracks.forEach(track => {
+        if (!track.notes.length) return
+        const isPerc = track.instrument.percussion
+        const type = getOscType(groupName, isPerc)
+
+        track.notes.forEach(note => {
+            const relTime = (note.time - trackStart) - seekOffset
+            if (relTime < -0.01) return
+            const at = now + Math.max(0, relTime)
+            const dur = Math.max(note.duration, 0.05)
+            const freq = isPerc ? 80 : midiToFreq(note.midi)
+            const vol = note.velocity * 0.6
+
+            // Low-pass filter per note to soften harsh harmonics
+            const filter = ctx.createBiquadFilter()
+            filter.type = 'lowpass'
+            filter.frequency.value = groupName === 'Bass' ? 600 : groupName === 'Brass/Wind' ? 1800 : 5000
+            filter.Q.value = 0.5
+            filter.connect(ctx.destination)
+
+            const gain = ctx.createGain()
+            gain.gain.setValueAtTime(0, at)
+            gain.gain.linearRampToValueAtTime(vol, at + (groupName === 'Strings' || groupName === 'Choir' ? 0.2 : 0.03))
+            gain.gain.setValueAtTime(vol, at + dur * 0.75)
+            gain.gain.linearRampToValueAtTime(0, at + dur + (groupName === 'Strings' ? 0.4 : 0.15))
+            gain.connect(filter)
+
+            const osc = ctx.createOscillator()
+            osc.type = type
+            osc.frequency.value = freq
+            osc.connect(gain)
+            osc.start(at)
+            osc.stop(at + dur + 0.5)
+            nodes.push(osc, gain, filter)
+        })
+    })
+
+    ticker = setInterval(() => {
+        const elapsed = ctx.currentTime - playStart
+        if (onTickFn) onTickFn(Math.min(elapsed, totalDur), totalDur)
+        if (elapsed >= totalDur) stopAll(onStopFn)
+    }, 100)
+}
+
+async function play(tracks, groupName, onTick, onStop) {
+    killAll()
+    if (ctx) { try { await ctx.close() } catch(e) {} }
+    ctx = new AudioContext()
+    await ctx.resume()
+
+    onTickFn = onTick
+    onStopFn = onStop
+    currentTracks = tracks
+    currentGroup = groupName
+
+    const allNotes = tracks.flatMap(t => t.notes)
+    if (!allNotes.length) return
+
+    trackStart = Math.min(...allNotes.map(n => n.time))
+    totalDur = Math.max(...allNotes.map(n => n.time + n.duration)) - trackStart
+
+    scheduleNotes(tracks, groupName, 0)
+}
+
+async function seek(fraction) {
+    if (!currentTracks.length) return
+    killAll()
+    if (ctx) { try { await ctx.close() } catch(e) {} }
+    ctx = new AudioContext()
+    await ctx.resume()
+    scheduleNotes(currentTracks, currentGroup, Math.max(0, Math.min(1, fraction)) * totalDur)
+}
+
+// ── UI ─────────────────────────────────────────────────────────────────────
+const app = document.getElementById('app')
+const nowPlaying = document.getElementById('now-playing')
+const progressBar = document.getElementById('progress-bar')
+const progressWrap = document.getElementById('progress-wrap')
+const scrubber = document.getElementById('scrubber')
+const timeDisplay = document.getElementById('time-display')
+
+function resetBar() {
+    progressBar.style.width = '0%'
+    scrubber.style.left = '0%'
+    timeDisplay.textContent = '00:00 / 00:00'
+    timeDisplay.classList.remove('active')
+    nowPlaying.textContent = '—'
+    nowPlaying.classList.remove('active')
+}
+
+progressWrap.addEventListener('click', async (e) => {
+    const rect = progressWrap.getBoundingClientRect()
+    await seek((e.clientX - rect.left) / rect.width)
+})
+
+progressWrap.addEventListener('mousemove', (e) => {
+    const rect = progressWrap.getBoundingClientRect()
+    scrubber.style.left = `${Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))}%`
+})
+
+async function loadMidis() {
+    const res = await fetch('midi/index.json')
+    const files = await res.json()
+    app.innerHTML = ''
+
+    for (const file of files) {
+        const data = await fetch(`midi/${file}`)
+        const buffer = await data.arrayBuffer()
+        const midi = new Midi(buffer)
+
+        const groups = groupTracksByRole(midi.tracks)
+        const tracksByGroup = {}
+        midi.tracks.filter(t => t.notes.length > 0).forEach(track => {
+            const role = getRole(track.instrument.number, track.instrument.percussion)
+            if (!tracksByGroup[role]) tracksByGroup[role] = []
+            tracksByGroup[role].push(track)
+        })
+
+        const section = document.createElement('div')
+        section.className = 'file-section'
+        section.innerHTML = `<div class="groups"></div>`
+        app.appendChild(section)
+        const groupsEl = section.querySelector('.groups')
+
+        for (const [role, instruments] of Object.entries(groups)) {
+            const row = document.createElement('div')
+            row.className = 'group-row'
+            row.innerHTML = `
+                <div class="indicator"></div>
+                <div class="group-name">${role}</div>
+                <div class="instruments">${instruments.join(', ')}</div>
+                <button class="btn">Play</button>
+            `
+            const btn = row.querySelector('.btn')
+
+            btn.addEventListener('click', async () => {
+                const wasPlaying = row.classList.contains('playing')
+                document.querySelectorAll('.group-row').forEach(r => {
+                    r.classList.remove('playing')
+                    r.querySelector('.btn').textContent = 'Play'
+                })
+                if (wasPlaying) { stopAll(); resetBar(); return }
+
+                row.classList.add('playing')
+                btn.textContent = 'Stop'
+
+                await play(
+                    tracksByGroup[role] || [], role,
+                    (elapsed, duration) => {
+                        const pct = Math.min((elapsed / duration) * 100, 100)
+                        progressBar.style.width = `${pct}%`
+                        scrubber.style.left = `${pct}%`
+                        timeDisplay.textContent = `${formatTime(elapsed)} / ${formatTime(duration)}`
+                        timeDisplay.classList.add('active')
+                        nowPlaying.textContent = role
+                        nowPlaying.classList.add('active')
+                    },
+                    () => { row.classList.remove('playing'); btn.textContent = 'Play'; resetBar() }
+                )
+            })
+
+            groupsEl.appendChild(row)
+        }
+    }
+}
+
+loadMidis()
+</script>
+</body>
+</html>
