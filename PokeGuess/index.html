@@ -49,7 +49,7 @@ body::after {
 
 /* ===== HEADER ===== */
 .header { margin-bottom: 36px; }
-.header h1 {
+.header .logo {
   font-family: var(--ff-title);
   font-size: clamp(2.6rem, 8vw, 3.8rem);
   letter-spacing: .1em;
@@ -59,8 +59,9 @@ body::after {
   user-select: none;
   transition: opacity .15s;
   display: inline-block;
+  text-decoration: none;
 }
-.header h1:hover { opacity: .8; }
+.header .logo:hover { opacity: .8; }
 
 /* ===== SETUP ===== */
 #setup { display: flex; flex-direction: column; gap: 12px; }
@@ -347,7 +348,7 @@ body::after {
 <div class="orb orb-b"></div>
 <div class="wrap">
   <div class="header">
-    <h1 onclick="goHome()">POKÉQUIZ</h1>
+    <a href="../index.html" class="logo">POKÉQUIZ</a>
   </div>
 
   <!-- SETUP -->
