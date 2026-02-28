@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PokéQuiz — En Jeu</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../themes.css">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="orb orb-a"></div>
+<div class="orb orb-b"></div>
+<div class="wrap">
+  <div class="header">
+    <a href="index.html" class="logo">Poke<em>Guess</em></a>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" style="display:flex; flex-direction:column;">
+    <div class="turn-banner">
+      <div class="turn-who">
+        <div class="turn-dot" id="turn-dot"></div>
+        <div class="turn-name" id="turn-name">Joueur</div>
+      </div>
+      <div class="turn-meta">
+        <div class="turn-round" id="turn-round">Pokémon 1/10</div>
+        <div class="mode-badge" id="mode-badge">QCM</div>
+      </div>
+    </div>
+
+    <div class="scoreboard" id="scoreboard"></div>
+
+    <div class="timer-wrap">
+      <span class="timer-label">⏱</span>
+      <div class="bar-outer"><div class="bar-inner" id="timer-bar" style="width:100%"></div></div>
+      <span id="timer-display">10s</span>
+    </div>
+
+    <div class="poke-card" id="poke-card">
+      <div class="pokeball"></div>
+    </div>
+
+    <div id="result-msg"></div>
+
+    <!-- QCM mode -->
+    <div id="qcm-area" style="display:none;">
+      <div class="qcm-grid" id="qcm-grid"></div>
+    </div>
+
+    <!-- Free input mode -->
+    <div id="input-area" style="display:none;">
+      <div class="input-wrap">
+        <input type="text" id="pokemon-input" placeholder="Entrez le nom du Pokémon..." autocomplete="off" spellcheck="false" />
+        <button id="submit-btn">OK ✓</button>
+      </div>
+    </div>
+
+    <button id="next-btn">SUIVANT ➜</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none;">
+    <div class="results-title">🏆 RÉSULTATS</div>
+    <div class="podium" id="podium"></div>
+    <button class="play-again-btn" id="play-again-btn">← RETOUR AU MENU</button>
+  </div>
+</div>
+
+<div class="confetti-container" id="confetti"></div>
+
+<script type="module" src="assets/js/game.js"></script>
+</body>
+</html>

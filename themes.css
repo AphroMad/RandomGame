@@ -1,0 +1,71 @@
+/* ===================================================
+   GLOBAL THEME SYSTEM
+   Import this file at the root of every page:
+   <link rel="stylesheet" href="../themes.css">  (adjust path as needed)
+   Toggle themes via: document.documentElement.setAttribute('data-theme', 'NAME')
+   =================================================== */
+
+/* ===== FONTS (shared across all themes) ===== */
+:root {
+  --ff-title: 'Bebas Neue', sans-serif;
+  --ff-mono:  'DM Mono', monospace;
+  --ff-body:  'DM Sans', sans-serif;
+}
+
+/* ===== DEFAULT / DARK THEME ===== */
+:root,
+[data-theme="dark"] {
+  --bg:       #03052E;
+  --s1:       #07093d;
+  --s2:       #0b0e4a;
+  --border:   #161952;
+  --border2:  #1e2266;
+
+  /* Brand colors */
+  --purple:   #9095FF;
+  --pink:     #DBA1FF;
+  --blue:     #8CF7FF;
+
+  /* Semantic roles */
+  --accent:        var(--purple);
+  --accent-alt:    var(--pink);
+  --accent-third:  var(--blue);
+
+  /* CTA gradient (used on outlined buttons via border-image trick or box-shadow) */
+  --cta-gradient: linear-gradient(90deg, var(--purple), var(--pink), var(--blue));
+
+  /* Text */
+  --text:   #e8e8ff;
+  --muted:  #5a5e9a;
+  --muted2: #2e3270;
+
+  /* States */
+  --danger:  #f06870;
+  --success: #6effd4;
+}
+
+/* ===== LIGHT THEME (stub — fill in when needed) ===== */
+[data-theme="light"] {
+  --bg:       #f0f0fa;
+  --s1:       #ffffff;
+  --s2:       #e8e8f5;
+  --border:   #d0d0e8;
+  --border2:  #b8b8d8;
+
+  --purple:   #6b6fd6;
+  --pink:     #b46fd6;
+  --blue:     #3bb8c8;
+
+  --accent:        var(--purple);
+  --accent-alt:    var(--pink);
+  --accent-third:  var(--blue);
+
+  --cta-gradient: linear-gradient(90deg, var(--purple), var(--pink), var(--blue));
+
+  --text:   #1a1a3e;
+  --muted:  #7878a8;
+  --muted2: #c0c0d8;
+
+  --danger:  #d93025;
+  --success: #1a9e7a;
+}

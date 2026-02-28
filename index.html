@@ -5,23 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Random Games</title>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="themes.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-            --bg:       #09090b;
-            --s1:       #111114;
-            --s2:       #17171c;
-            --border:   #222228;
-            --border2:  #2e2e38;
-            --accent:   #c8f060;
-            --text:     #e2e2ee;
-            --muted:    #52526a;
-            --muted2:   #38384a;
-            --ff-title: 'Bebas Neue', sans-serif;
-            --ff-mono:  'DM Mono', monospace;
-            --ff-body:  'DM Sans', sans-serif;
-        }
 
         html, body {
             min-height: 100vh;
@@ -44,8 +30,8 @@
         }
 
         .orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
-        .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(200,240,96,.05) 0%, transparent 70%); }
-        .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(96,208,240,.04) 0%, transparent 70%); }
+        .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(144,149,255,.06) 0%, transparent 70%); }
+        .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(140,247,255,.04) 0%, transparent 70%); }
 
         .shell {
             position: relative;
@@ -61,7 +47,10 @@
             font-size: clamp(2.6rem, 8vw, 3.8rem);
             letter-spacing: .1em;
             line-height: 1;
-            color: var(--accent);
+            background: var(--cta-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .buttons-container {
@@ -81,17 +70,30 @@
             border-radius: 12px;
             text-decoration: none;
             transition: border-color .2s, background .2s, transform .15s;
+            position: relative;
         }
 
+        .game-btn::before {
+            content: '';
+            position: absolute; inset: 0;
+            border-radius: 12px;
+            padding: 1px;
+            background: var(--cta-gradient);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .2s;
+        }
+
+        .game-btn:hover::before { opacity: 1; }
         .game-btn:hover {
-            border-color: var(--accent);
-            background: rgba(200,240,96,.04);
+            background: rgba(144,149,255,.06);
             transform: translateY(-2px);
         }
 
-        .game-btn .icon {
-            font-size: 1.4rem;
-        }
+        .game-btn .icon { font-size: 1.4rem; }
 
         .game-btn .label {
             font-family: var(--ff-title);
@@ -101,9 +103,7 @@
             transition: color .2s;
         }
 
-        .game-btn:hover .label {
-            color: var(--accent);
-        }
+        .game-btn:hover .label { color: var(--purple); }
 
         .game-btn .desc {
             font-family: var(--ff-mono);
