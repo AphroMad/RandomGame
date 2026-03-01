@@ -12,7 +12,7 @@ This milestone is a polish and unification effort across the three existing game
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Theme Unification** - Make all three games share `themes.css` as the single source of truth for colors, noise overlay, and ambient orbs
+- [x] **Phase 1: Theme Unification** - Make all three games share `themes.css` as the single source of truth for colors, noise overlay, and ambient orbs
 
 ## Phase Details
 
@@ -27,9 +27,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Inspecting PokeGuess shows no local `assets/css/themes.css` file and no duplicate theme `<link>` tags
   5. Music01s has the noise overlay and ambient orbs matching the homepage visual signature
 **Plans:** 3 plans
-- [ ] 01-01-PLAN.md — PokeGuess cleanup (delete duplicate themes.css, fix orb colors) + Music01s additions (noise overlay, ambient orbs)
+- [x] 01-01-PLAN.md — PokeGuess cleanup (delete duplicate themes.css, fix orb colors) + Music01s additions (noise overlay, ambient orbs)
 - [x] 01-02-PLAN.md — MusicSplit full migration (remove inline :root, link themes.css, replace all lime values with purple/cyan)
-- [ ] 01-03-PLAN.md — Cross-game automated verification + visual checkpoint
+- [x] 01-03-PLAN.md — Cross-game automated verification + visual checkpoint
 
 ## Progress
 
@@ -38,4 +38,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Theme Unification | 1/3 | In progress | - |
+| 1. Theme Unification | 3/3 | Complete | 2026-03-01 |
