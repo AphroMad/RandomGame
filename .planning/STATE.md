@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: MusicSplit Game
-status: ready_to_plan
+status: in_progress
 last_updated: "2026-03-01"
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Every game feels like part of the same polished product — consistent design across all games.
-**Current focus:** Phase 2 — Build Pipeline (ready to plan)
+**Current focus:** Phase 3 — Game Core
 
 ## Current Position
 
-Phase: 2 of 4 (Build Pipeline)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-01 — Roadmap created for v1.1, phases 2-4 defined
+Phase: 3 of 4 (Game Core)
+Plan: — (planning next)
+Status: Phase 2 complete — ready to plan Phase 3
+Last activity: 2026-03-01 — Phase 2 Build Pipeline complete (02-01-PLAN.md)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -40,7 +40,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 02-build-pipeline | 1 | ~30min | ~30min |
 
 *Updated after each plan completion*
 
@@ -54,8 +54,10 @@ Recent decisions affecting current work:
 - [v1.1]: MIDI → MP3 via soundfonts — better audio than oscillator synthesis
 - [v1.1]: Merge Strings/Synth/Other into closest groups — keep exactly 6 rounds
 - [v1.1]: Python build pipeline before game UI — audio assets must exist before game is coded
-- [v1.1]: songs.json + fetch() pattern — NOT songs.js global (incompatible with ES module deferred loading)
+- [v1.1]: songs.js with const SONGS = [...] confirmed (CONTEXT.md overrides earlier songs.json note; Phase 3 may need to revisit if ES module deferred loading required)
 - [v1.1]: Web Audio API AudioBufferSourceNode — NOT HTMLAudioElement (drift breaks multi-layer sync)
+- [Phase 2]: Use mido (not pretty_midi) for MIDI channel->program mapping and filtered MIDI writing
+- [Phase 2]: All 6 per-group MP3s written even if empty (present:false in manifest)
 
 ### Pending Todos
 
@@ -70,5 +72,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Phase 2 context gathered — ready to plan
-Resume file: .planning/phases/02-build-pipeline/02-CONTEXT.md
+Stopped at: Phase 2 Plan 01 complete — 02-01-SUMMARY.md written
+Resume file: .planning/phases/02-build-pipeline/02-01-SUMMARY.md

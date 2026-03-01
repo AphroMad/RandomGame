@@ -20,10 +20,10 @@ Requirements for milestone v1.1: MusicSplit Game. Each maps to roadmap phases.
 
 ### Build Pipeline
 
-- [ ] **BUILD-01**: Python script parses MIDI files and groups tracks into 6 instrument groups (Drums+Perc, Bass, Brass/Wind, Keys/Piano+Synth, Guitar, Ensemble+Choir+Strings)
-- [ ] **BUILD-02**: Script renders each instrument group to a separate MP3 using FluidSynth + soundfont
-- [ ] **BUILD-03**: Script generates cumulative MP3 files (layer N = groups 1 through N mixed together)
-- [ ] **BUILD-04**: Script generates songs.js manifest with song title, artist, and per-layer file paths
+- [x] **BUILD-01**: Python script parses MIDI files and groups tracks into 6 instrument groups (Drums+Perc, Bass, Brass/Wind, Keys/Piano+Synth, Guitar, Ensemble+Choir+Strings)
+- [x] **BUILD-02**: Script renders each instrument group to a separate MP3 using FluidSynth + soundfont
+- [x] **BUILD-03**: Script generates cumulative MP3 files (layer N = groups 1 through N mixed together)
+- [x] **BUILD-04**: Script generates songs.js manifest with song title, artist, and per-layer file paths
 
 ### Game Core
 
@@ -87,10 +87,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01 | Phase 2 | Pending |
-| BUILD-02 | Phase 2 | Pending |
-| BUILD-03 | Phase 2 | Pending |
-| BUILD-04 | Phase 2 | Pending |
+| BUILD-01 | Phase 2 | Complete |
+| BUILD-02 | Phase 2 | Complete |
+| BUILD-03 | Phase 2 | Complete |
+| BUILD-04 | Phase 2 | Complete |
 | GAME-01 | Phase 3 | Pending |
 | GAME-02 | Phase 3 | Pending |
 | GAME-03 | Phase 3 | Pending |

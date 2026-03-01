@@ -37,7 +37,7 @@
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 2: Build Pipeline** - Python script renders MIDI files to per-instrument-group MP3s and generates the songs.js manifest
+- [x] **Phase 2: Build Pipeline** - Python script renders MIDI files to per-instrument-group MP3s and generates the songs.js manifest
 - [ ] **Phase 3: Game Core** - Playable 6-round guessing game with cumulative audio, autocomplete guessing, win/lose states, and legacy code removed
 - [ ] **Phase 4: UI Polish + Explorer Mode** - Layer name indicators, badge strip, round timeline, and free-play explorer mode
 
@@ -54,7 +54,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Playing a group MP3 in a browser or audio player sounds like recognizable instruments from the original song (not oscillator tones)
 **Plans:** 1 plan
 Plans:
-- [ ] 02-01-PLAN.md — Build complete MIDI-to-MP3 pipeline (build.py + .gitignore + end-to-end verification)
+- [x] 02-01-PLAN.md — Build complete MIDI-to-MP3 pipeline (build.py + .gitignore + end-to-end verification)
 
 ### Phase 3: Game Core
 **Goal**: A fully playable MusicSplit guessing game where the player hears cumulative instrument layers, submits guesses with autocomplete, skips rounds, and receives a win or lose outcome — with all legacy oscillator/Tone.js code gone
@@ -88,6 +88,6 @@ Phases execute in numeric order: 2 → 3 → 4
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Theme Unification | v1.0 | 3/3 | Complete | 2026-03-01 |
-| 2. Build Pipeline | v1.1 | 0/1 | Planned | - |
+| 2. Build Pipeline | v1.1 | 1/1 | Complete | 2026-03-01 |
 | 3. Game Core | v1.1 | 0/? | Not started | - |
 | 4. UI Polish + Explorer Mode | v1.1 | 0/? | Not started | - |
