@@ -5,24 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Separate Instruments</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../themes.css">
 <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi/build/Midi.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:       #09090b;
-    --s1:       #111114;
-    --s2:       #17171c;
-    --border:   #222228;
-    --border2:  #2e2e38;
-    --accent:   #c8f060;
-    --text:     #e2e2ee;
-    --muted:    #52526a;
-    --muted2:   #38384a;
-    --ff-title: 'Bebas Neue', sans-serif;
-    --ff-mono:  'DM Mono', monospace;
-    --ff-body:  'DM Sans', sans-serif;
-  }
 
   html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--ff-body); }
 
@@ -32,8 +18,8 @@
   }
 
   .orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
-  .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(200,240,96,.05) 0%, transparent 70%); }
-  .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(96,208,240,.04) 0%, transparent 70%); }
+  .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(144,149,255,.06) 0%, transparent 70%); }
+  .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(140,247,255,.04) 0%, transparent 70%); }
 
   .shell {
     position: relative; z-index: 1;
@@ -49,12 +35,12 @@
     font-size: 2.6rem;
     letter-spacing: .1em;
     line-height: 1;
-    color: var(--accent);
+    color: var(--text);
     text-decoration: none;
     transition: opacity .15s;
   }
   .logo:hover { opacity: 0.8; }
-  .logo em { color: var(--text); font-style: normal; }
+  .logo em { color: var(--purple); font-style: normal; }
 
   .inspired {
     font-family: var(--ff-mono);
@@ -75,7 +61,7 @@
     border-radius: 10px;
     transition: border-color .2s, background .2s;
   }
-  .group-row.playing { border-color: var(--accent); background: rgba(200,240,96,.04); }
+  .group-row.playing { border-color: var(--accent); background: rgba(144,149,255,.04); }
 
   .indicator {
     width: 6px; height: 6px; border-radius: 50%;
@@ -118,14 +104,14 @@
   }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
   .group-row.playing .btn { border-color: var(--accent); color: var(--accent); }
-  .group-row.playing .btn:hover { background: var(--accent); color: #09090b; }
+  .group-row.playing .btn:hover { background: var(--accent); color: #fff; }
 
   .loading { font-family: var(--ff-mono); font-size: .7rem; color: var(--muted); letter-spacing: .1em; }
 
   /* Bottom bar */
   #bottom-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(9,9,11,.92);
+    background: rgba(3,5,46,.92);
     backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
     padding: 14px 28px;
