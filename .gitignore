@@ -2,3 +2,7 @@
 /Music01s/original
 /.claude
 /.planning
+
+# MusicSplit build artifacts
+*.sf2
+MusicSplit/audio/
