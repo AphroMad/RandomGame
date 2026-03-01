@@ -229,20 +229,22 @@ def render_midi_to_wav(midi_path, wav_path, soundfont_path):
         )
 
 
-def wav_to_mp3(wav_path, mp3_path, duration=60):
-    """Trim WAV to duration seconds and encode as 192kbps stereo MP3."""
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-i", wav_path,
-        "-t", str(duration),
-        "-ar", "44100", "-ac", "2", "-b:a", "192k",
-        mp3_path,
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+def wav_to_mp3(wav_path, mp3_path, duration=None):
+    """Encode WAV as 192kbps stereo MP3.
+
+    duration: seconds to trim to, or None to encode the full file.
+    """
+    cmd = ["ffmpeg", "-y", "-i", wav_path]
+    if duration is not None:
+        cmd += ["-t", str(duration)]
+    cmd += ["-ar", "44100", "-ac", "2", "-b:a", "192k", mp3_path]
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 
-def mix_wavs_to_mp3(wav_paths, mp3_path, duration=60):
+def mix_wavs_to_mp3(wav_paths, mp3_path, duration=None):
     """Mix multiple WAV files and encode as a cumulative layer MP3.
 
+    duration: seconds to trim to, or None to encode the full length.
     Single input: delegates to wav_to_mp3 (no mixing needed).
     Multiple inputs: uses ffmpeg amix filter with normalize=0.
     """
@@ -255,14 +257,15 @@ def mix_wavs_to_mp3(wav_paths, mp3_path, duration=60):
         inputs += ["-i", p]
 
     n = len(wav_paths)
-    subprocess.run([
-        "ffmpeg", "-y",
-        *inputs,
-        "-t", str(duration),
+    cmd = ["ffmpeg", "-y", *inputs]
+    if duration is not None:
+        cmd += ["-t", str(duration)]
+    cmd += [
         "-filter_complex", f"amix=inputs={n}:duration=longest:normalize=0",
         "-ar", "44100", "-ac", "2", "-b:a", "192k",
         mp3_path,
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    ]
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 
 # ---------------------------------------------------------------------------
