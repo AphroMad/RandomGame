@@ -42,9 +42,10 @@
     color: transparent; min-height: 0; max-height: 42px;
   }
   .attempt-row.skipped  { background: var(--s2); color: var(--muted); }
-  .attempt-row.correct  { background: var(--purple); color: #fff; }
-  .attempt-row.wrong    { background: var(--danger); color: #fff; }
+  .attempt-row.correct  { background: var(--s1); color: var(--text); }
+  .attempt-row.wrong    { background: var(--s1); border: 2px solid var(--danger); color: var(--text); }
   .attempt-row.revealed { background: var(--s2); color: var(--text); }
+  .attempt-row.solution { background: #10b981; color: #fff; }
 
   /* timeline */
   .timeline-wrap { padding: 18px 0 2px; position: relative; }
@@ -59,6 +60,14 @@
     border-left: 5px solid transparent; border-right: 5px solid transparent;
     border-top: 6px solid var(--text); margin: 2px auto 0;
   }
+  
+  .tl-marker {
+    position: absolute; top: 0; bottom: 0; width: 3px;
+    background: white; border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(255,255,255,0.6);
+    z-index: 10;
+  }
 
   .tl-track {
     position: relative; height: 10px; background: var(--s2); border-radius: 4px; overflow: hidden;
@@ -67,10 +76,9 @@
 
   /* segment dividers */
   .tl-segs {
-    position: absolute; inset: 0; display: flex; pointer-events: none;
+    position: absolute; inset: 0; pointer-events: none;
   }
-  .tl-seg { flex: 1; border-right: 2px solid var(--bg); }
-  .tl-seg:last-child { border-right: none; }
+  .tl-seg { position: absolute; }
 
   /* play button */
   .play-wrap { display: flex; justify-content: center; padding: 16px 0 18px; }
@@ -169,6 +177,7 @@
     <div class="attempt-row" id="row-3"></div>
     <div class="attempt-row" id="row-4"></div>
     <div class="attempt-row" id="row-5"></div>
+    <div class="attempt-row" id="row-6"></div>
   </div>
 
   <div class="timeline-wrap" id="timelineWrap">
@@ -176,6 +185,7 @@
     <div class="tl-track">
       <div class="tl-fill" id="tlFill"></div>
       <div class="tl-segs" id="tlSegs"></div>
+      <div class="tl-marker" id="tlMarker" style="left:0%"></div>
     </div>
   </div>
 
@@ -224,7 +234,12 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function buildTimeline() {
-  document.getElementById('tlSegs').innerHTML = CLIPS.map(() => `<div class="tl-seg"></div>`).join('');
+  // Positionner les séparateurs à 0.5s, 2s, 4s, 8s (les 4 derniers clips)
+  const separatorPositions = [0.5, 2, 4, 8].map(pos => (pos / TOTAL_DUR * 100) + '%');
+  const segsHtml = separatorPositions.map(pos => 
+    `<div class="tl-seg" style="position:absolute;left:${pos};top:0;bottom:0;width:2px;background:var(--bg)"></div>`
+  ).join('');
+  document.getElementById('tlSegs').innerHTML = segsHtml;
 }
 
 function setTlProgress(p) { document.getElementById('tlFill').style.width = (p * 100) + '%'; }
@@ -235,6 +250,9 @@ function setTlLabel(clipIdx) {
   const lbl = document.getElementById('tlLabel');
   lbl.style.left = pct + '%';
   lbl.textContent = dur + ' seconds';
+  // Positionner le marqueur blanc/rose
+  const marker = document.getElementById('tlMarker');
+  if (marker) marker.style.left = pct + '%';
 }
 
 function loadSong() {
@@ -242,7 +260,7 @@ function loadSong() {
   round = 0; done = false;
   stopClip();
   audio.src = songs[songIdx].file; audio.load();
-  for (let i = 0; i < CLIPS.length; i++) {
+  for (let i = 0; i <= CLIPS.length; i++) {
     const r = document.getElementById('row-' + i);
     r.className = 'attempt-row'; r.textContent = '';
   }
@@ -257,7 +275,37 @@ function loadSong() {
 }
 
 function playClip() {
-  if (done) return;
+  // Si le jeu est terminé, permettre d'écouter la chanson en entier
+  if (done) {
+    if (clipState === 'playing') {
+      audio.pause();
+      clipState = 'idle';
+      setPlayIcon(false);
+      cancelAnimationFrame(rafId);
+    } else {
+      audio.currentTime = 0;
+      audio.play().catch(e => console.error(e));
+      clipState = 'playing';
+      setPlayIcon(true);
+      // Mettre à jour la barre de progression pendant la lecture
+      function updateFullProgress() {
+        if (clipState !== 'playing') return;
+        const progress = audio.currentTime / audio.duration;
+        setTlProgress(progress);
+        rafId = requestAnimationFrame(updateFullProgress);
+      }
+      rafId = requestAnimationFrame(updateFullProgress);
+      // Écouter la fin de la chanson pour réinitialiser l'icône
+      audio.onended = () => {
+        clipState = 'idle';
+        setPlayIcon(false);
+        cancelAnimationFrame(rafId);
+        setTlProgress(1);
+      };
+    }
+    return;
+  }
+  
   if (clipState === 'playing') { pauseClip(); return; }
   if (clipState === 'paused')  { resumeClip(); return; }
   startClip(CLIPS[round],
@@ -321,10 +369,19 @@ function stopClip() { resetClip(); setPlayIcon(false); }
 function skipStep() {
   document.getElementById('acWrap').classList.remove('open');
   stopClip(); setTlProgress(0);
+  
   const row = document.getElementById('row-' + round);
-  row.className = 'attempt-row skipped'; row.textContent = 'Skipped';
+  row.className = 'attempt-row skipped';
+  row.textContent = `Skipped (${CLIPS[round]}s)`;
+  
   round++;
-  if (round >= CLIPS.length) { lose(); return; }
+  
+  // Si c'est la dernière tentative, afficher la solution
+  if (round >= CLIPS.length) {
+    lose();
+    return;
+  }
+  
   setTlLabel(round);
   document.getElementById('guessInput').value = '';
   document.getElementById('guessInput').classList.remove('has-value');
@@ -374,7 +431,8 @@ function submitGuess() {
 
   const row = document.getElementById('row-' + round);
   row.className = 'attempt-row wrong';
-  row.textContent = document.getElementById('guessInput').value;
+  const userGuess = document.getElementById('guessInput').value;
+  row.textContent = `${userGuess} (${CLIPS[round]}s)`;
   round++;
   document.getElementById('guessInput').value = '';
   document.getElementById('guessInput').classList.remove('has-value');
@@ -386,17 +444,28 @@ function submitGuess() {
 
 function win() {
   done = true; stopClip();
-  const row = document.getElementById('row-' + round);
-  row.className = 'attempt-row correct';
-  row.textContent = songs[songIdx].title + (songs[songIdx].artist ? ' — ' + songs[songIdx].artist : '');
+  
+  // Afficher "Right answer" dans le container du round actuel
+  const currentRow = document.getElementById('row-' + round);
+  currentRow.className = 'attempt-row correct';
+  currentRow.textContent = `Right answer (${CLIPS[round]}s)`;
+  
+  // Afficher la solution dans la dernière ligne (row-6) en vert
+  const solutionRow = document.getElementById('row-6');
+  solutionRow.className = 'attempt-row solution';
+  const answer = songs[songIdx].title + (songs[songIdx].artist ? ' — ' + songs[songIdx].artist : '');
+  solutionRow.textContent = answer;
+  
   flashBtn('win'); setInputEnabled(false); showNext();
 }
 
 function lose() {
   done = true; stopClip();
-  const row = document.getElementById('row-' + round);
-  row.className = 'attempt-row revealed';
-  row.textContent = songs[songIdx].title + (songs[songIdx].artist ? ' — ' + songs[songIdx].artist : '');
+  // Afficher la solution dans la dernière ligne (row-6) en vert
+  const solutionRow = document.getElementById('row-6');
+  solutionRow.className = 'attempt-row solution';
+  const answer = songs[songIdx].title + (songs[songIdx].artist ? ' — ' + songs[songIdx].artist : '');
+  solutionRow.textContent = answer;
   flashBtn('lose'); setInputEnabled(false); showNext();
 }
 
