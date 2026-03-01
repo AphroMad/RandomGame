@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Music01s has the noise overlay and ambient orbs matching the homepage visual signature
 **Plans:** 3 plans
 - [ ] 01-01-PLAN.md — PokeGuess cleanup (delete duplicate themes.css, fix orb colors) + Music01s additions (noise overlay, ambient orbs)
-- [ ] 01-02-PLAN.md — MusicSplit full migration (remove inline :root, link themes.css, replace all lime values with purple/cyan)
+- [x] 01-02-PLAN.md — MusicSplit full migration (remove inline :root, link themes.css, replace all lime values with purple/cyan)
 - [ ] 01-03-PLAN.md — Cross-game automated verification + visual checkpoint
 
 ## Progress
@@ -38,4 +38,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Theme Unification | 0/3 | Not started | - |
+| 1. Theme Unification | 1/3 | In progress | - |
