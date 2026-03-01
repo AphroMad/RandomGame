@@ -20,8 +20,8 @@ body::after {
 
 /* ambient orbs */
 .orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
-.orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(200,240,96,.05) 0%, transparent 70%); }
-.orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(96,208,240,.04) 0%, transparent 70%); }
+.orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(144,149,255,.06) 0%, transparent 70%); }
+.orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(140,247,255,.04) 0%, transparent 70%); }
 
 .wrap { position: relative; z-index: 1; width: 100%; max-width: 680px; }
 
