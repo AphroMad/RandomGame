@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: MusicSplit Game
-status: defining_requirements
+status: ready_to_plan
 last_updated: "2026-03-01"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,14 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Every game feels like part of the same polished product — consistent design across all games.
-**Current focus:** Milestone v1.1 — MusicSplit Game (defining requirements)
+**Current focus:** Phase 2 — Build Pipeline (ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 2 of 4 (Build Pipeline)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-01 — Milestone v1.1 started
+Status: Ready to plan
+Last activity: 2026-03-01 — Roadmap created for v1.1, phases 2-4 defined
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -49,11 +51,11 @@ Last activity: 2026-03-01 — Milestone v1.1 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.0]: Dark theme for all games — match homepage unified feel
-- [v1.0]: Vanilla HTML/CSS/JS — no build step, GitHub Pages constraint
 - [v1.1]: MIDI → MP3 via soundfonts — better audio than oscillator synthesis
-- [v1.1]: Merge Strings/Synth/Other into closest groups — keep 6 rounds
-- [v1.1]: Python build pipeline before game UI — audio assets first
+- [v1.1]: Merge Strings/Synth/Other into closest groups — keep exactly 6 rounds
+- [v1.1]: Python build pipeline before game UI — audio assets must exist before game is coded
+- [v1.1]: songs.json + fetch() pattern — NOT songs.js global (incompatible with ES module deferred loading)
+- [v1.1]: Web Audio API AudioBufferSourceNode — NOT HTMLAudioElement (drift breaks multi-layer sync)
 
 ### Pending Todos
 
@@ -61,10 +63,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None.
+- [Phase 2]: FluidSynth CLI flags differ between 1.x and 2.x — verify with `fluidsynth --help` before pipeline coding
+- [Phase 2]: GeneralUser GS soundfont must be manually downloaded (not committed to repo) — confirm URL and license before starting
+- [Phase 3]: iOS Safari AudioContext autoplay unlock behavior should be tested on a real device, not Chrome DevTools simulation
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Starting milestone v1.1 — defining requirements
+Stopped at: Roadmap created — Phase 2 Build Pipeline ready to plan
 Resume file: None
