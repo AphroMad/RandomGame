@@ -1,17 +1,17 @@
 # Project Research Summary
 
-**Project:** RandomGame — Static Mini-Game Collection
-**Domain:** Multi-page static game portal (vanilla HTML/CSS/JS, GitHub Pages)
+**Project:** MusicSplit v1.1 — Instrument-Layering Music Guessing Game
+**Domain:** MIDI-to-MP3 build pipeline + cumulative audio guessing game (static, GitHub Pages)
 **Researched:** 2026-03-01
-**Confidence:** HIGH
+**Confidence:** MEDIUM-HIGH — stack and architecture grounded in direct codebase audit; game mechanic patterns from training knowledge of bandle.app; audio API behavior from Web Audio spec
 
 ## Executive Summary
 
-RandomGame is a personal static web portal hosting three independent mini-games (Music01s, MusicSplit, PokeGuess) on GitHub Pages. This milestone is explicitly a polish and unification effort — not a greenfield build. The tech stack is fully locked by constraints: vanilla HTML/CSS/JS, no build step, raw files served by GitHub Pages. The primary problem to solve is visual incoherence: two competing color palettes exist in the codebase (purple/pink/blue on the homepage and Music01s vs. lime green on MusicSplit and PokeGuess), each game reinvents shared structural CSS (noise overlay, orbs, reset), and mobile layouts are broken on at least two games due to `height: 100vh` + `overflow: hidden` traps.
+MusicSplit v1.1 transforms an existing MIDI instrument visualizer into a bandle.app-style guessing game. The player hears only the first instrument layer (Drums), guesses the song, and on each failure receives a cumulative new layer (Drums + Bass, then + Brass, etc.) over 6 rounds. The foundational requirement that makes everything else possible is a Python build pipeline: MIDI files are parsed by `pretty_midi`, split into 6 instrument-group MIDI files, rendered to WAV via FluidSynth + a General MIDI soundfont, then encoded to MP3 via ffmpeg. The existing oscillator synthesis is entirely replaced — it produces tones players cannot recognize, making the game unplayable without real audio.
 
-The recommended approach is a three-phase normalization: first consolidate the design token layer (`themes.css` as single source of truth, eliminating all per-game `:root` overrides and duplicate theme files), then fix mobile responsiveness game by game, then standardize navigation and cosmetic consistency across all three games. This order is dictated by hard dependencies — the mobile CSS fixes and color corrections in MusicSplit are meaningless until `themes.css` is actually imported, and navigation polish only makes sense on a visually coherent product.
+The recommended implementation reuses heavily from the existing Music01s codebase. The guess/skip flow, autocomplete, attempt rows, win/lose states, and Next Song button are all direct ports from Music01s. The key difference is that instead of one audio element pointing to a clip, the game manages up to 6 `AudioBufferSourceNode` objects (one per instrument group), all driven from the same `AudioContext` clock for sample-accurate synchronization. Using plain `HTMLAudioElement` for multi-track playback is explicitly identified as a critical pitfall: multiple audio elements drift apart audibly within seconds, making the layered mechanic feel broken.
 
-The key risks are deceptively invisible: MusicSplit uses the same CSS variable names as `themes.css` but defines different values inline, so the game will appear to work but render the wrong colors until the inline `:root` block is removed and the import is added. Orb colors are hardcoded RGBA values that survive a theme migration unless explicitly hunted down. The Music01s mobile layout requires structural surgery (`100vh` + `overflow: hidden` must be removed), not just media queries applied on top of a broken base.
+The biggest risks cluster around two areas: (1) the build pipeline — drum channel assignment, per-group MIDI file creation, soundfont quality, and duration normalization across groups all require careful implementation before any UI work; and (2) the game runtime — audio synchronization using Web Audio API, mobile AudioContext unlock behavior, and dynamic round rendering (as opposed to hardcoded 6-row HTML) are the highest-risk UI decisions. Build the pipeline first, validate audio output quality per group, then build the game UI against real MP3 files.
 
 ---
 
@@ -19,133 +19,129 @@ The key risks are deceptively invisible: MusicSplit uses the same CSS variable n
 
 ### Recommended Stack
 
-The stack requires no changes. Vanilla HTML5, CSS Custom Properties via `:root` variables, and vanilla ES Modules (where already in use) are the correct tools. The `themes.css` file at the repo root is the design token system — it is partially functional today and must be enforced as the single source of truth across all games. No libraries should be added. The one external dependency (Tone.js MIDI via jsDelivr CDN in MusicSplit) stays as-is.
-
-The only tooling consideration is local development: because PokeGuess uses ES modules (`type="module"`), a local dev server (VS Code Live Server or `python -m http.server`) is required — `file://` protocol breaks ES modules. This should be documented and standardized across all games.
+The stack is almost entirely zero-new-dependency: `pretty_midi` (already imported in `details_midi.py`), `ffmpeg` (already used in `Music01s/build.py`), and FluidSynth (a system CLI binary, not pip-installable). The only new Python dependency is `midi2audio==0.1.1`, a thin wrapper that eliminates FluidSynth subprocess boilerplate. The soundfont is a data asset — GeneralUser GS (~30 MB) is recommended for its full GM coverage and consistent quality across all 6 instrument groups. The soundfont is NOT committed to the repo; it lives in `MusicSplit/soundfonts/` and is a build-only local asset.
 
 **Core technologies:**
-- Vanilla HTML5: per-game page structure — no framework, GitHub Pages serves raw files directly
-- CSS Custom Properties (`themes.css`): design token system — already partially in use, must be enforced consistently
-- CSS `clamp()` + `min-height: 100svh`: responsive layout — replace broken `100vh` + `overflow:hidden` pattern
-- Vanilla ES Modules: shared utilities if needed — PokeGuess already uses this, adopt for any new shared code
-- Google Fonts CDN (Bebas Neue, DM Mono, DM Sans): typography — already loaded on all pages, keep as-is
+- `pretty_midi 0.2.10`: Parse MIDI tracks, split by group, write per-group `.mid` files — already in the project
+- `FluidSynth 2.3.x` (CLI): Render group MIDI + soundfont to WAV — installed via `brew install fluidsynth`
+- `midi2audio 0.1.1`: Python wrapper for FluidSynth CLI — eliminates subprocess boilerplate
+- `ffmpeg 6.x/7.x` (CLI): WAV to MP3 at 192k — already used in Music01s build pipeline
+- `GeneralUser GS.sf2`: Full General MIDI soundfont — downloaded separately, never committed to repo
 
 ### Expected Features
 
-This milestone is a polish milestone. All deliverables are table stakes (things users expect from a coherent product), not new functionality. No new game features are in scope.
+The game mechanic is well-defined and directly mirrors bandle.app. Research identified a clear separation between P1 launch requirements, P2 polish, and features to defer.
 
-**Must have (table stakes) — this milestone:**
-- MusicSplit adopts `../themes.css` (remove inline `:root`, add `<link>` tag) — prerequisite for all color work
-- Consistent accent palette across all games (purple/cyan, not lime) — visual coherence
-- Noise overlay and ambient orbs present and correctly colored in all 3 games — visual signature consistency
-- Mobile layout functional at 375px width — no horizontal scroll, no clipped controls
-- Touch targets minimum 44px on all primary action buttons — usability on mobile
-- Standardized logo/header markup and back-navigation across all 3 games
-- Consistent `<title>` format and `lang="fr"` attribute on all pages
+**Must have (table stakes — P1):**
+- Pre-rendered per-group MP3 audio pipeline — without real soundfont audio the game is unplayable
+- Cumulative audio layer playback via Web Audio API, not HTMLAudioElement — core mechanic
+- 6-round guess/skip progression with fixed layer order: Drums, Bass, Brass, Keys, Guitar, Ensemble
+- Autocomplete guess input against songs.json manifest
+- Attempt rows with correct/wrong/skipped/revealed states — reuse Music01s CSS
+- Layer name indicator showing which instrument groups are currently audible
+- Win/Lose end state with song reveal and Next Song button
 
-**Should have (v1.x polish, after core is stable):**
-- Page entry fade-in animation (pure CSS, low cost)
-- Keyboard navigation improvements for PokeGuess (number keys 1-4) and MusicSplit (spacebar play/stop)
-- Semantic HTML pass (`<main>`, `<header>`, `<nav>`)
+**Should have (polish — P2, add after core loop validated):**
+- Layer name in attempt row text (e.g. "Skipped — Drums + Bass")
+- Visual layer badge strip below audio controls
+- Timeline repurposed as 6-segment round indicator (reuse Music01s `.tl-track` CSS)
 
 **Defer (v2+):**
-- Game template pattern extraction — only valuable when adding a 4th game
-- Light theme completion — not needed for current use case
-- PWA / Service Worker — games load remote assets, offline caching is complex and unnecessary
+- Mobile responsive layout (inherited debt from v1.0)
+- Keyboard navigation (spacebar/enter shortcuts)
+- Score persistence or leaderboard (explicitly out of scope in PROJECT.md)
 
 ### Architecture Approach
 
-The architecture is a flat directory structure with a shared CSS token layer. Each game is a self-contained directory (`GameName/index.html`) that imports `../themes.css` to inherit design tokens, then adds its own game-specific CSS and JS. The critical architectural fix for this milestone is eliminating the two instances of divergence from this model: MusicSplit has its own inline `:root` instead of importing `themes.css`, and PokeGuess has a conflicting local copy of `themes.css` with different values. The optional `shared.css` at root (for noise overlay, orbs, CSS reset, scrollbar) would eliminate ~30 lines of duplicated CSS per game and is worth introducing during the normalization pass.
+The system has two distinct phases: a local Python build pipeline that runs before deployment, and a browser runtime that plays the pre-rendered results. `build.py` reads MIDI files, groups tracks by GM program range using a canonical 6-group mapping, writes per-group MIDI files, renders them through FluidSynth to WAV, converts via ffmpeg to MP3, and generates `songs.json`. The browser loads `songs.json` via `fetch()`, creates one `AudioBufferSourceNode` per group MP3, and starts all active nodes from the same `AudioContext.currentTime` on each play event. State management is minimal: a round counter and an array of decoded `AudioBuffer` objects.
 
 **Major components:**
-1. `themes.css` (root) — canonical design tokens: colors, fonts, gradients; all games reference via `../themes.css`
-2. `shared.css` (root, to be created) — structural CSS shared by all games: noise overlay, orbs, CSS reset, scrollbar
-3. Game directories (`Music01s/`, `MusicSplit/`, `PokeGuess/`) — self-contained game logic, CSS, and assets; no cross-game dependencies
-4. Homepage (`index.html`) — navigation entry point linking to all games
+1. `MusicSplit/build.py` — MIDI-to-per-group-MP3 render pipeline; replaces `generate.py`; generates `songs.json`
+2. `MusicSplit/audio/<song-id>/group-N-<name>.mp3` — pre-rendered group audio; committed to repo; approximately 1-3 MB each
+3. `MusicSplit/songs.json` — machine-readable song manifest with group paths; generated by build.py
+4. `MusicSplit/index.html` (rewritten) — game UI; uses Music01s flow; new Web Audio engine replaces oscillator player
+5. New audio engine (inline or separate file) — `AudioContext` + `AudioBufferSourceNode` per group; no Tone.js
 
-**Build order for normalization (dictated by dependencies):**
-1. Lock `themes.css` tokens (confirm all required variables are present and correct)
-2. Normalize MusicSplit (highest divergence — own `:root`, wrong accent)
-3. Normalize PokeGuess (remove duplicate local `themes.css`)
-4. Normalize Music01s (extract inline CSS, add noise overlay + orbs)
-5. (Optional) Create `shared.css` and consolidate structural CSS
+**Files to delete after pipeline is confirmed working:** `generate.py`, `player.js`, `utils.js`, `midi/index.json`
 
 ### Critical Pitfalls
 
-1. **Silent theme mismatch via same variable names** — MusicSplit uses `--accent` but defines it as `#c8f060` (lime) inline; after switching to `themes.css`, every `var(--accent)` now points to purple and lime-specific UI elements (playing indicators, progress) will look wrong if not audited. Prevention: after removing the inline `:root`, audit every `var(--accent)` usage in MusicSplit and verify visually.
+1. **Multiple HTMLAudioElement drift** — Never use `<audio>` elements for multi-layer sync. Use Web Audio API `AudioBufferSourceNode` driven from one `AudioContext` clock. Audible drift appears within 10-30 seconds with `HTMLAudioElement`. This is the single highest-impact pitfall with the highest recovery cost.
 
-2. **`100vh` + `overflow:hidden` traps mobile users in Music01s** — On iOS Safari, `100vh` includes the browser chrome; the layout clips and bottom controls become unreachable. Prevention: replace with `min-height: 100svh` + remove `overflow: hidden` from `body`. Test on a real iOS device, not just Chrome DevTools.
+2. **MIDI Channel 10 drum routing** — FluidSynth unconditionally treats channel 10 as percussion. Always filter tracks using `pretty_midi`'s `instrument.is_drum` flag; never use FluidSynth channel-muting flags. Write a filtered `.mid` per group; never pass the full MIDI with channel flags.
 
-3. **Hardcoded RGBA orb colors survive theme migration** — MusicSplit and PokeGuess orbs use `rgba(200,240,96,...)` (lime) hardcoded in CSS, not CSS variables. These do not change when `themes.css` is adopted. Prevention: add `--orb-a-color` and `--orb-b-color` tokens to `themes.css` and update all orb rules to use them, in the same commit as the theme migration.
+3. **Soundfont quality mismatch** — The default FluidR3_GM soundfont (from apt/brew) renders poor guitar and brass. Test the chosen soundfont on all 6 group types before implementing the pipeline. Recommend GeneralUser GS.
 
-4. **Copy-pasted noise overlay creates sync debt** — The `body::after` noise SVG is duplicated across 4 files. Any future change requires updating all 4. Prevention: move the noise rule to `themes.css` in one commit and delete all per-file copies; grep for `feTurbulence` to verify zero inline duplicates remain.
+4. **Empty groups produce silent rounds** — Many pop MIDIs have no brass or no strings. The pipeline must detect zero-note groups, flag them in the manifest, and the game must skip those rounds dynamically. Hardcoding 6 rounds always is unacceptable.
 
-5. **PokeGuess `game.html` has no path back to root homepage** — The in-game back link points to `index.html` (PokeGuess setup), not `../../index.html` (root). Users who share a direct game link cannot find the game list. Prevention: audit all game states (setup, mid-game, result) and confirm the logo/back link reaches root `index.html`.
+5. **songs.js global vs songs.json fetch** — A `const SONGS = [...]` global via `<script>` tag conflicts with ES module deferred loading needed for `async/await`. Use `songs.json` + `fetch()` from the start. This decision must be made before UI coding begins.
+
+6. **Tone.js conflict with new audio engine** — The existing `player.js` uses Tone.js Transport which can suspend the shared `AudioContext`. The new game must NOT import `player.js` or Tone.js. Write a fresh audio module from scratch.
+
+7. **Group duration mismatch** — FluidSynth renders each group independently; release tails differ by instrument type. Normalize all group MP3s for a song to the same duration using `ffmpeg -t {max_duration}` after rendering.
 
 ---
 
 ## Implications for Roadmap
 
-Based on research, the phase structure is dictated by hard CSS cascade dependencies. Design tokens must be correct before colors can be fixed; mobile layout surgery must happen before mobile QA is meaningful; navigation polish only makes sense on a visually coherent, working product.
+Research shows a strict dependency chain: audio pipeline must exist before game UI is built, and the manifest format must be decided before either the pipeline output or the game input is coded. The suggested phase structure follows this dependency order.
 
-### Phase 1: Shared CSS Foundation
+### Phase 1: Build Pipeline — Group Rendering
 
-**Rationale:** Every subsequent fix depends on `themes.css` being the single source of truth. MusicSplit's inline `:root` and PokeGuess's local `themes.css` copy actively block all color normalization work. This must come first — it is the unblocking phase.
-**Delivers:** A coherent visual baseline across all 3 games — same accent color (purple/cyan), same noise overlay, same orb colors. The product looks like one product for the first time.
-**Addresses:** themes.css adoption in MusicSplit, consistent accent palette, noise overlay in Music01s, orb colors in MusicSplit and PokeGuess
-**Avoids:** Silent theme mismatch (Pitfall 1), hardcoded orb colors (Pitfall 3), copy-pasted noise sync debt (Pitfall 4)
+**Rationale:** This is the foundational blocker. Nothing else in the project can be validated without real per-group MP3 audio. Oscillator synthesis cannot substitute for testing "does this sound like the song." The pipeline is also the most technically novel part — it involves FluidSynth behavior, drum channel routing, soundfont selection, and duration normalization, all of which need verification before downstream work begins.
 
-Tasks:
-- Confirm `themes.css` has all required tokens; add `--orb-a-color`, `--orb-b-color` if missing
-- MusicSplit: add `<link rel="stylesheet" href="../themes.css">`, remove inline `:root {}`
-- MusicSplit: audit all `var(--accent)` usages, update orb background values
-- PokeGuess: delete `assets/css/themes.css`, remove duplicate `<link>` from both HTML files
-- Music01s: add noise overlay and orbs (copy pattern from homepage, use tokens)
-- Consolidate noise overlay into `themes.css`; optionally create `shared.css` for orbs + reset
+**Delivers:** Working `build.py` that takes `midi/*.mid` files and produces `audio/<song-id>/group-N-<name>.mp3` for all 6 groups. Each group file contains only its instrument group, all groups are the same duration, no group is silence-only.
 
-### Phase 2: Mobile Responsiveness
+**Addresses:** Pre-rendered MP3 pipeline (P1), `songs.json` manifest format decision
 
-**Rationale:** Music01s has a structurally broken mobile layout (`100vh` + `overflow: hidden`) that cannot be fixed with media queries alone — it requires removing the layout constraint first. MusicSplit has no responsive rules at all. This phase requires Phase 1 to be complete so that colors are correct when testing on mobile.
-**Delivers:** All 3 games playable on 375px-wide screens with no horizontal scroll, no clipped content, and tappable controls.
-**Addresses:** Mobile layout for Music01s and MusicSplit, `dvh`/`svh` adoption, touch target minimum 44px enforcement
-**Avoids:** `100vh` + `overflow:hidden` mobile trap (Pitfall 2)
+**Avoids:** Drum channel 10 mismatch, per-group MIDI channel reassignment, soundfont quality failure, empty-group silence, duration mismatch between groups
 
-Tasks:
-- Music01s: replace `height: 100vh` with `min-height: 100svh`; remove `overflow: hidden` from `html, body`; add `flex-wrap` on control rows; test on iOS Safari
-- MusicSplit: add mobile media queries; ensure controls are reachable at 375px
-- Homepage: verify centered layout holds at 375px (likely already OK)
-- All games: audit primary action buttons for `min-height: 44px`
-- Add `inputmode="search"` to Music01s text input for iOS keyboard handling
+### Phase 2: Song Manifest (songs.json)
 
-### Phase 3: Navigation and Consistency
+**Rationale:** Once pipeline output is verified, the manifest format locks the contract between `build.py` and the game UI. This must be finalized before game UI coding starts, or the UI will need to be reworked when manifest format changes. The manifest must record: song ID, title, artist, per-group file paths, which groups are present (non-empty), and canonical song duration.
 
-**Rationale:** With colors and mobile layouts correct, the final phase addresses the "one product" feel at the navigation and metadata level. These are lower-severity issues (broken navigation still works via browser back button) but are required for the product to feel finished.
-**Delivers:** Consistent navigation pattern across all games, correct HTML metadata, standardized header markup.
-**Addresses:** Inconsistent back-navigation, PokeGuess `game.html` missing root nav, `lang` attribute, `<title>` format
-**Avoids:** Navigation inconsistency (Pitfall 5)
+**Delivers:** `build.py` writes `songs.json` with full song and group metadata. Format: `[{ id, title, artist, duration, groups: [{ name, file, hasAudio }] }]`.
 
-Tasks:
-- Define canonical navigation pattern: logo-as-link in top-left, always pointing to `../index.html`
-- Apply pattern consistently across all 3 games (Music01s, MusicSplit, PokeGuess index + game.html)
-- Fix PokeGuess `game.html` back link to reach root `index.html`
-- Set `lang="fr"` on all pages (currently `en` on Music01s and MusicSplit)
-- Standardize `<title>` format: `[Game Name] — Random Games`
+**Uses:** `songs.json` + `fetch()` pattern — not `songs.js` global, which is incompatible with ES module deferred loading
+
+**Avoids:** songs.js global incompatibility with module loading
+
+### Phase 3: Game UI — Core Game Loop
+
+**Rationale:** With real audio and a manifest in place, the game UI can be built against validated data. The core loop (audio playback, guess/skip, round progression, win/lose) is the main deliverable. Music01s patterns provide approximately 80% of the JS needed; the new audio engine and dynamic round rendering are the novel parts.
+
+**Delivers:** Playable game — audio plays cumulatively per round, guess/skip advances layers, correct/wrong/skipped rows update, win/lose state shown, Next Song resets the game.
+
+**Addresses:** All P1 features — cumulative audio playback, 6-round progression, autocomplete, attempt rows, win/lose state, Next Song
+
+**Avoids:** HTMLAudioElement drift (use Web Audio API), Tone.js conflict (write new audio module), hardcoded 6-round HTML rows (generate dynamically from manifest data), mobile AudioContext unlock failure
+
+### Phase 4: UI Polish and Cleanup
+
+**Rationale:** Once the core loop is confirmed to work with real audio, polish features and file cleanup can proceed without risk of blocking the core mechanic.
+
+**Delivers:** Layer name in attempt row text, visual layer badge strip, round indicator (timeline as 6 segments), deletion of `generate.py`, `player.js`, `utils.js`, `midi/index.json`.
+
+**Addresses:** P2 features — layer name in rows, badge strip, timeline round indicator
+
+**Avoids:** Leaving unused Tone.js and player.js imports in the codebase
 
 ### Phase Ordering Rationale
 
-- Phase 1 before Phase 2: MusicSplit's color fixes are impossible until `themes.css` is imported; fixing mobile layout on top of wrong colors wastes a test cycle
-- Phase 1 before Phase 3: Navigation styling references CSS tokens — tokens must be stable
-- Phase 2 before Phase 3: No point polishing navigation chrome until the core game layout is mobile-functional
-- Phase 3 last: It is the least blocking and most cosmetic — safe to defer if time is limited
+- Pipeline before UI is a hard dependency: the game cannot be tested meaningfully without real audio.
+- Manifest format before both: `build.py` output and game `fetch()` input must agree on the schema; deciding it once in Phase 2 prevents rework in both directions.
+- Dynamic round rendering (not hardcoded HTML) is coded into Phase 3 by design: the manifest provides the actual group list per song, so the UI generates rows from data, not from hardcoded IDs.
+- Polish and cleanup are deferred to Phase 4 explicitly: deleting legacy files before Phase 3 is confirmed working removes the safety net.
 
 ### Research Flags
 
-Phases with standard patterns (no additional research needed):
-- **Phase 1:** CSS Custom Properties cascade is a thoroughly documented, stable web standard. The specific changes (add `<link>`, remove `:root {}`) are mechanical and low-risk.
-- **Phase 2:** `min-height: 100svh` has documented browser support (2022+, all modern mobile browsers). The pattern is established.
-- **Phase 3:** Metadata and HTML attribute changes are trivial. No research needed.
+Phases likely needing deeper research during planning:
+- **Phase 1 (Pipeline):** FluidSynth CLI flags for the installed version should be verified with `fluidsynth --help` before implementation; `pretty_midi.PrettyMIDI.write()` behavior for filtered instrument sets, particularly `is_drum` preservation, warrants a quick API check before the full pipeline is coded.
+- **Phase 3 (Game UI):** Web Audio API multi-buffer synchronized start pattern should be confirmed against MDN before implementation; iOS Safari `AudioContext` autoplay unlock behavior should be verified on a real device, not Chrome DevTools simulation — Safari restrictions change between OS versions.
 
-No phases require additional research. All implementation patterns are either already established in the codebase or are well-documented web platform features.
+Phases with standard patterns (skip research-phase):
+- **Phase 2 (Manifest):** JSON schema design with no external dependencies. No research needed.
+- **Phase 4 (Polish):** Pure CSS/DOM manipulation. Established patterns. No research needed.
 
 ---
 
@@ -153,34 +149,41 @@ No phases require additional research. All implementation patterns are either al
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Based on direct codebase audit; stack is already fixed by project constraints — no speculation required |
-| Features | HIGH | Feature scope defined by direct gap analysis between current codebase state and target coherent product; no guessing |
-| Architecture | HIGH | Direct file inspection; all findings are concrete file-level issues with specific fixes |
-| Pitfalls | HIGH | Every pitfall is a real bug or pattern observed directly in existing files, not theoretical risk |
+| Stack | MEDIUM | `pretty_midi` and `midi2audio` are confirmed tools; versions reflect Aug 2025 training cutoff — verify on PyPI before pinning. `ffmpeg` and FluidSynth confirmed present via direct codebase audit. |
+| Features | MEDIUM-HIGH | Core game mechanic based on training knowledge of bandle.app (cited in MusicSplit source). Music01s reuse patterns based on direct code reading (HIGH). Competitor feature details MEDIUM. |
+| Architecture | HIGH | Based entirely on direct codebase audit of Music01s and MusicSplit source files. HTML5 Audio API patterns are well-established spec-level behavior. |
+| Pitfalls | HIGH | Grounded in codebase inspection, General MIDI spec (channel 10 rule), and Web Audio API specification. FluidSynth rendering behavior from training knowledge confirmed by spec. |
 
-**Overall confidence:** HIGH
+**Overall confidence:** MEDIUM-HIGH
 
 ### Gaps to Address
 
-- **`svh` vs `dvh` unit choice:** Research recommends `min-height: 100svh` (small viewport height — most conservative, ensures content is never clipped by browser chrome). `dvh` (dynamic) would also work but reflows on scroll. Decision: use `svh` for fixed-layout games (Music01s), verify during implementation if `dvh` is more appropriate for scroll-friendly layouts.
-- **MusicSplit lime color intent:** Several MusicSplit UI states (playing row highlight, progress indicator) use `--accent` which was lime (#c8f060). After migration to purple, these elements may need design review to confirm purple reads correctly in context. Not a blocker, but requires a visual QA pass after Phase 1.
-- **`shared.css` decision:** Whether to create a `shared.css` for orbs, noise, and reset is left optional in research. Recommendation is to create it — the noise overlay consolidation is required (Pitfall 4) and doing orbs + reset at the same time is low-overhead. Confirm during Phase 1 planning.
+- **Exact FluidSynth CLI flags for rendering:** `fluidsynth -ni <sf> <mid> -F <wav> -r 44100` is the expected form but should be verified with `fluidsynth --help` on the actual installed version before the pipeline is coded. Flags differ slightly between FluidSynth 1.x and 2.x.
+- **pretty_midi channel 9 preservation on write:** The drum channel preservation behavior when copying instruments into a new `PrettyMIDI` object should be tested with a small script before the full pipeline is written. If `is_drum` is not preserved on copy, an explicit assertion must be added.
+- **Soundfont availability and license:** GeneralUser GS is recommended but must be manually downloaded. Verify current version URL at https://schristiancollins.com/generaluser.php; license permits use in games.
+- **Repo size budget:** At 192k MP3, a 3-minute song produces approximately 26 MB of group files. The current MIDI library size is unknown — if more than 10-15 songs are planned, 128k bitrate or clip trimming (render only first 60 seconds) may be needed. Decide before running the full pipeline on the whole library.
+- **iOS Safari AudioContext policy:** Safari's autoplay restrictions evolve with OS versions. The research identifies the correct pattern (create AudioContext in user gesture, `await context.resume()` before `.start()`) but the specific behavior should be tested on a real device.
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase audit (2026-03-01): `/index.html`, `/themes.css`, `/Music01s/index.html`, `/MusicSplit/index.html`, `/PokeGuess/index.html`, `/PokeGuess/game.html`, `/PokeGuess/assets/css/themes.css`, `/PokeGuess/assets/css/style.css` — all findings grounded in actual file contents
+- Direct codebase audit — `MusicSplit/index.html`, `MusicSplit/player.js`, `MusicSplit/utils.js`, `MusicSplit/details_midi.py`, `MusicSplit/generate.py`, `Music01s/build.py`, `Music01s/index.html`, `Music01s/songs.js` (2026-03-01)
+- `PROJECT.md` — layer order, pipeline scope, anti-features explicitly excluded
+- `STATE.md` — v1.1 active milestone, decisions logged
+- General MIDI specification — Channel 10 percussion routing, GM program number ranges
+- Web Audio API specification — `AudioContext`, `AudioBufferSourceNode`, mobile autoplay policy
 
 ### Secondary (MEDIUM confidence)
-- MDN Web Docs (training data): CSS viewport units (`svh`, `dvh`), CSS Custom Properties cascade behavior, ES module browser support
-- Can I Use baseline data (training data): `svh`/`dvh` 2022 baseline, `clamp()` 2020 baseline, `dvh` 2023 baseline
+- Training knowledge: `pretty_midi` API (`instrument.is_drum`, `PrettyMIDI.write`), `midi2audio` wrapper behavior, FluidSynth 2.3.x CLI flags, GeneralUser GS soundfont quality — stable and long-established tools; verify versions on PyPI and official sites before pinning
+- Training knowledge: bandle.app game mechanics — cumulative layer reveal over 6 rounds with autocomplete; cited in MusicSplit source as direct inspiration
+- FluidSynth project (https://www.fluidsynth.org/) — version 2.3.x current as of Aug 2025 training cutoff; verify current version before installing
 
-### Tertiary (noted for validation)
-- Browser behavior of `100vh` on iOS Safari with browser chrome: well-documented community issue since 2017; `svh` introduced as the standard fix in 2022; verify on real device during Phase 2 QA
+### Tertiary (LOW confidence)
+- iOS Safari specific AudioContext autoplay behavior — documented restriction pattern is stable, but exact behavior in newer Safari versions should be validated on a real device before shipping
+- GitHub Pages repo size limits — 1 GB soft limit widely cited; verify if repo audio assets grow beyond 10 songs
 
 ---
-
 *Research completed: 2026-03-01*
 *Ready for roadmap: yes*

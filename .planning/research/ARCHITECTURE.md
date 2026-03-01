@@ -1,8 +1,16 @@
 # Architecture Research
 
-**Domain:** Static multi-game collection website (vanilla HTML/CSS/JS, GitHub Pages)
+**Domain:** MIDI-to-MP3 build pipeline + instrument-layering guessing game (static, GitHub Pages)
 **Researched:** 2026-03-01
-**Confidence:** HIGH — Based on direct codebase audit of all existing files; no speculation required.
+**Confidence:** HIGH — based on direct codebase audit of all existing files plus well-established HTML5 Audio API and Python subprocess patterns.
+
+---
+
+## Milestone Scope
+
+This document covers v1.1 MusicSplit transformation only: converting MusicSplit from a MIDI
+visualizer (oscillator synthesis) into a real guessing game with pre-rendered per-group MP3 audio
+and cumulative layer reveal. The theme-unification architecture from v1.0 is preserved and extended.
 
 ---
 
@@ -11,384 +19,641 @@
 ### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      GitHub Pages Host                       │
-├─────────────────────────────────────────────────────────────┤
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────┐ │
-│  │ index.html │  │ Music01s/  │  │ MusicSplit/│  │PokeGue │ │
-│  │ (homepage) │  │ index.html │  │ index.html │  │ss/     │ │
-│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └───┬────┘ │
-│        │               │               │              │      │
-│        └───────────────┴───────────────┴──────────────┘      │
-│                               │                              │
-├───────────────────────────────┼──────────────────────────────┤
-│                    SHARED LAYER                              │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  themes.css  (root CSS custom properties — tokens)    │   │
-│  └───────────────────────────────────────────────────────┘   │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  Google Fonts CDN (Bebas Neue, DM Mono, DM Sans)      │   │
-│  └───────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    GAME-SPECIFIC LAYER                       │
-│  ┌──────────────────┐  ┌──────────────────┐                  │
-│  │  Game CSS        │  │  Game JS         │                  │
-│  │  (styles)        │  │  (logic/data)    │                  │
-│  └──────────────────┘  └──────────────────┘                  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         BUILD TIME (local, Python)                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  midi/*.mid  ──┐                                                      │
+│                ├──> build.py ──> FluidSynth/soundfont ──> audio/     │
+│  soundfont.sf2 ┘                                                      │
+│                                                                        │
+│  audio/                                                               │
+│    <song-id>/                                                         │
+│      group-1-drums.mp3                                                │
+│      group-2-bass.mp3                                                 │
+│      group-3-brass-wind.mp3                                           │
+│      group-4-keys-piano-synth.mp3                                     │
+│      group-5-guitar.mp3                                               │
+│      group-6-ensemble-choir-strings.mp3                               │
+│                                                                        │
+│  build.py also writes:  songs.js  (SONGS constant with metadata)      │
+│                                                                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                        RUNTIME (browser, vanilla JS)                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  index.html loads songs.js (SONGS constant)                           │
+│       │                                                               │
+│       ├─ picks random song                                            │
+│       ├─ creates 6 HTMLAudioElement objects (one per group MP3)       │
+│       ├─ starts game loop (round 1: drums only playing)               │
+│       ├─ on skip/wrong guess: adds next layer (play next Audio)       │
+│       └─ cumulative: by round 6, all 6 Audio elements play in sync   │
+│                                                                        │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| `themes.css` (root) | Canonical design tokens: colors, fonts, gradients, states | `:root {}` CSS custom properties; game pages load via `../themes.css` |
-| `index.html` (root) | Homepage: game list, navigation entry point | Self-contained HTML + inline `<style>` |
-| `GameName/index.html` | Game entry point: page structure + game UI | Imports `../themes.css`; game CSS inline or via external file |
-| Game CSS file | Game-specific layout and component styles | External `.css` only needed if game spans multiple pages |
-| Game JS file(s) | Game logic, data, state management | Vanilla JS, either inline `<script>` or external `.js` |
-
----
-
-## Current State: What Exists vs. Target State
-
-### Actual File Layout (as audited)
-
-```
-RandomGame/
-├── index.html              # Homepage — uses themes.css, inline <style>
-├── themes.css              # CANONICAL token file (fonts + dark/light themes)
-│
-├── Music01s/
-│   ├── index.html          # All styles inline in <style> tag; links ../themes.css
-│   └── songs.js            # Auto-generated song data array (SONGS constant)
-│
-├── MusicSplit/
-│   ├── index.html          # Divergent: has own :root {} inline, no ../themes.css link
-│   │                       # Uses different accent (#c8f060 lime vs #9095FF purple)
-│   ├── player.js           # (present but content in index.html inline script)
-│   └── utils.js            # (present but content in index.html inline script)
-│
-└── PokeGuess/
-    ├── index.html          # Links ../themes.css AND assets/css/themes.css (conflict)
-    ├── game.html           # The active game page
-    └── assets/
-        ├── css/
-        │   ├── themes.css  # DUPLICATE token file with different accent color (#c8f060)
-        │   └── style.css   # All game CSS; well-organized external file
-        └── js/
-            ├── data.js     # Pokemon data fetching (PokeAPI)
-            ├── setup.js    # Setup page logic (ES module)
-            └── game.js     # Game logic (ES module)
-```
-
-### Key Divergences Found (Confidence: HIGH)
-
-| Issue | MusicSplit | PokeGuess | Music01s |
-|-------|-----------|-----------|----------|
-| Links `../themes.css` | No — own `:root` inline | Partially — also has local `assets/css/themes.css` | Yes |
-| Accent color | `#c8f060` (lime) | `#c8f060` (lime) in local themes.css | `#9095FF` (purple, from shared) |
-| Orb background colors | Lime-tinted `rgba(200,240,96)` | Lime-tinted `rgba(200,240,96)` | Purple-tinted via shared |
-| Noise overlay | Inline in `<style>` | In `assets/css/style.css` | Inline in `<style>` |
-| Reset CSS | Inline in `<style>` | In `assets/css/style.css` | Inline in `<style>` |
-| Font loading | Google Fonts CDN link | Google Fonts CDN link | Google Fonts CDN link |
-
-**Critical finding:** There are effectively two color schemes in use. Homepage and Music01s use the purple/pink/blue gradient palette from the canonical `themes.css`. MusicSplit and PokeGuess use a lime (#c8f060) accent. Unification is the primary architectural work.
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| `build.py` | MIDI → per-group MP3 render pipeline | Python script, runs locally before commit |
+| `midi/*.mid` | Source MIDI files, one per song | Binary, committed to repo |
+| `audio/<song-id>/group-N-<name>.mp3` | Pre-rendered group audio files | Output of build.py, committed to repo |
+| `songs.js` | Game data: SONGS constant with song metadata + group file paths | Auto-generated by build.py |
+| `index.html` | Game entry point: UI structure + all JS inline | Vanilla HTML/JS, no framework |
+| `../themes.css` | Shared design tokens | Already in place from v1.0 |
 
 ---
 
 ## Recommended Project Structure (Target State)
 
 ```
-RandomGame/
-├── index.html              # Homepage
-├── themes.css              # Canonical tokens — all games reference this
-├── shared.css              # (Optional) Shared structural patterns: orbs, noise, reset, scrollbar
-│
-├── Music01s/
-│   ├── index.html          # Links: ../themes.css [+ ../shared.css if created]
-│   ├── style.css           # Game-specific CSS (extracted from inline <style>)
-│   └── songs.js            # Game data
-│
-├── MusicSplit/
-│   ├── index.html          # Links: ../themes.css [+ ../shared.css if created]
-│   │                       # Remove inline :root{} — use tokens from themes.css
-│   ├── style.css           # Game-specific CSS
-│   ├── player.js           # Game logic
-│   └── utils.js            # Utilities
-│
-└── PokeGuess/
-    ├── index.html          # Links: ../themes.css only (remove local assets/css/themes.css)
-    ├── game.html           # Links: ../themes.css only
-    └── assets/
-        ├── css/
-        │   └── style.css   # Game CSS only — no token duplication
-        └── js/
-            ├── data.js
-            ├── setup.js
-            └── game.js
+MusicSplit/
+├── index.html                     # Game page — all UI + JS inline
+├── songs.js                       # Auto-generated: SONGS array (titles, groups, file paths)
+├── build.py                       # MIDI → per-group MP3 build pipeline
+├── midi/
+│   ├── index.json                 # (keep for backward compat or drop — replaced by songs.js)
+│   ├── never-gonna-give-you-up.mid
+│   ├── bohemian-rhapsody.mid
+│   └── ...
+└── audio/
+    ├── never-gonna-give-you-up/
+    │   ├── group-1-drums.mp3
+    │   ├── group-2-bass.mp3
+    │   ├── group-3-brass-wind.mp3
+    │   ├── group-4-keys-piano-synth.mp3
+    │   ├── group-5-guitar.mp3
+    │   └── group-6-ensemble-choir-strings.mp3
+    └── bohemian-rhapsody/
+        ├── group-1-drums.mp3
+        └── ...
 ```
 
 ### Structure Rationale
 
-- **`themes.css` at root:** Single source of truth for all design tokens. All games reference it with `../themes.css`. No game duplicates or overrides it.
-- **`shared.css` at root (optional):** If the noise overlay, orb markup, CSS reset, and scrollbar styles are extracted into one file, every game gains them for free with one additional link. This is optional but eliminates ~30 lines of duplicated CSS per game.
-- **Game-specific CSS as external files:** Keeps `index.html` readable. Only necessary when the game has enough CSS to warrant it (Music01s currently has it all inline — extracting to `style.css` is the right move for consistency).
-- **No shared JS:** Games are fully independent in logic. Shared JS is overkill until a genuine utility (e.g., analytics, keyboard shortcuts) spans multiple games.
+- **`audio/<song-id>/`**: One directory per song keeps group files co-located. The song-id is derived from the MIDI filename (sanitized to lowercase-hyphen). Flat naming (no nested sub-groups) keeps `fetch` paths simple.
+- **`group-N-<name>.mp3`**: Numeric prefix encodes reveal order (1=first layer, 6=last). The name suffix is human-readable but only used for debugging — the game uses the SONGS array order, not filenames, to determine sequence.
+- **`songs.js`**: Mirrors the Music01s pattern exactly. `build.py` writes a `const SONGS = [...]` file. The game `<script src="songs.js">` loads it without any fetch needed.
+- **`build.py` replaces `generate.py`**: The old `generate.py` only wrote `midi/index.json`. The new `build.py` does the full render pipeline and generates `songs.js`.
+- **`utils.js` and `player.js`**: The existing files contain the MIDI-based player logic. Both become unused once the build pipeline produces MP3s. They can be deleted or kept as reference — delete is cleaner.
+
+---
+
+## Build Pipeline Architecture
+
+### Data Flow: MIDI to MP3
+
+```
+midi/<song>.mid
+    |
+    v
+[Python: pretty_midi]  ← parse tracks → identify instruments → assign group
+    |
+    v
+[Group assignment table]
+    Group 1: Drums + Percussion (isPercussion=True, program 47, program 55)
+    Group 2: Bass (program 32-39)
+    Group 3: Brass/Wind (program 56-71)
+    Group 4: Keys/Piano + Synth (program 0-23, program 80-95)
+    Group 5: Guitar (program 24-31)
+    Group 6: Ensemble + Choir + Strings (program 40-51, 52-54)
+    Fallback: Other → merge into nearest group (never output an empty group file)
+    |
+    v
+[Per-group MIDI files] (written to temp dir, one .mid per group)
+    |
+    v
+[FluidSynth CLI] for each group MIDI:
+    fluidsynth -ni <soundfont.sf2> group.mid -F group.wav -r 44100
+    |
+    v
+[FFmpeg CLI] WAV → MP3:
+    ffmpeg -i group.wav -b:a 192k -ac 2 group.mp3
+    |
+    v
+audio/<song-id>/group-N-<name>.mp3
+    |
+    v
+[songs.js generation]
+    build.py writes: const SONGS = [{
+        id: "never-gonna-give-you-up",
+        title: "Never Gonna Give You Up",
+        artist: "Rick Astley",
+        groups: [
+            { name: "Drums & Percussion", file: "audio/never-gonna-give-you-up/group-1-drums.mp3" },
+            { name: "Bass", file: "audio/never-gonna-give-you-up/group-2-bass.mp3" },
+            ...
+        ]
+    }, ...]
+```
+
+### Group Assignment: The Exact 6-Group Mapping
+
+This is the canonical mapping used by both `build.py` (for rendering) and the game logic (for display). It is derived from the existing `getRole()` function in `utils.js` with merges applied.
+
+| Group # | Display Name | MIDI Programs | Notes |
+|---------|-------------|---------------|-------|
+| 1 | Drums & Percussion | `isPercussion=True`, program 47 (Timpani), program 55 (Orchestra Hit) | All percussion tracks |
+| 2 | Bass | 32–39 | Acoustic/Electric/Synth Bass |
+| 3 | Brass & Wind | 56–71 | Trumpet, Trombone, Sax, Flute, etc. |
+| 4 | Keys, Piano & Synth | 0–23, 80–95 | Piano, Organ, Chromatic Perc + Synth Lead/Pad |
+| 5 | Guitar | 24–31 | Acoustic, Electric, Distortion Guitar |
+| 6 | Ensemble, Choir & Strings | 40–51, 52–54 | Strings + Ensemble + Choir |
+| — | Other (fallback) | 72–79 (Pipe), 96–127 (Effects, Ethnic, Sound FX) | Rare — merge into Group 4 (Keys) by default |
+
+**Why these merges:** Strings, Ensemble, Choir are often sparse individually. They share a
+"lush/orchestral" quality that makes them a coherent reveal group. Synth instruments (80-95)
+are merged into Keys/Piano because in MIDI arrangements they often substitute for keyboard parts.
+The fallback "Other" bucket (effects, ethnic, sound FX) appears in fewer than 5% of MIDI files
+and is functionally inaudible on its own — merging into Keys avoids an empty or near-silent layer.
+
+### build.py Implementation Pattern
+
+Follow the Music01s `build.py` structure exactly (it already handles the MIDI→audio→data pipeline
+pattern). Key differences for MusicSplit:
+
+```python
+#!/usr/bin/env python3
+"""
+MusicSplit build pipeline: MIDI → per-group MP3 + songs.js
+Requires: pretty_midi, FluidSynth CLI, FFmpeg CLI, a soundfont (.sf2)
+Run from: MusicSplit/ directory
+"""
+import os, re, json, subprocess, tempfile, shutil
+import pretty_midi
+
+MIDI_DIR    = "midi"
+AUDIO_DIR   = "audio"
+OUTPUT_FILE = "songs.js"
+SOUNDFONT   = "soundfont.sf2"       # path to soundfont relative to MusicSplit/
+SAMPLE_RATE = 44100
+BITRATE     = "192k"
+
+GROUP_ORDER = [
+    ("Drums & Percussion", "drums"),
+    ("Bass",               "bass"),
+    ("Brass & Wind",       "brass-wind"),
+    ("Keys, Piano & Synth","keys-piano-synth"),
+    ("Guitar",             "guitar"),
+    ("Ensemble, Choir & Strings", "ensemble-choir-strings"),
+]
+
+def get_group(program, is_drum):
+    if is_drum or program in (47, 55):   return "Drums & Percussion"
+    if 32 <= program <= 39:              return "Bass"
+    if 56 <= program <= 71:              return "Brass & Wind"
+    if (0 <= program <= 23) or (80 <= program <= 95): return "Keys, Piano & Synth"
+    if 24 <= program <= 31:              return "Guitar"
+    if (40 <= program <= 54):            return "Ensemble, Choir & Strings"
+    return "Keys, Piano & Synth"  # fallback — merge Other into Keys
+
+def song_id_from_filename(filename):
+    name = os.path.splitext(filename)[0]
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+def render_group_to_mp3(group_midi, out_mp3, soundfont):
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        wav_path = f.name
+    subprocess.run(
+        ["fluidsynth", "-ni", soundfont, group_midi, "-F", wav_path, "-r", str(SAMPLE_RATE)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+    )
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", wav_path, "-b:a", BITRATE, "-ac", "2", out_mp3],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+    )
+    os.unlink(wav_path)
+
+# ... [loop over midi files, split tracks, render, write songs.js]
+```
+
+The key insight: `pretty_midi` can write a subset of tracks back to a new MIDI file. That
+per-group MIDI is then rendered by FluidSynth, converted to WAV, then to MP3 by FFmpeg.
+
+---
+
+## Runtime Architecture: Cumulative HTML5 Audio Playback
+
+### Pattern: Multiple HTMLAudioElement, Synchronized Start
+
+This is the core technical question for the game runtime. The answer is simple and well-established.
+
+```javascript
+// Create one Audio element per group — all pointing to the same song's group files
+const audioLayers = SONG.groups.map(group => {
+    const el = new Audio(group.file);
+    el.preload = "auto";
+    return el;
+});
+
+// Round 1: only layer 0 (drums) plays
+// Round 2: layers 0+1 (drums + bass) play in sync
+// etc.
+
+let activeRound = 0;  // number of layers currently audible
+
+function startPlayback() {
+    // Sync all currently-active layers to same currentTime, then play together
+    const t = 0;  // or resume from stored position
+    for (let i = 0; i <= activeRound; i++) {
+        audioLayers[i].currentTime = t;
+        audioLayers[i].play();
+    }
+}
+
+function stopPlayback() {
+    audioLayers.forEach(el => { el.pause(); el.currentTime = 0; });
+}
+
+function revealNextLayer() {
+    // Called on skip or wrong guess
+    activeRound = Math.min(activeRound + 1, audioLayers.length - 1);
+    // Next playback call will include the new layer
+}
+```
+
+**Why this works:** All MP3 files for a given song are rendered from the same MIDI, so they
+are identical in duration and tempo. Calling `.play()` on all active layers simultaneously
+(in a tight loop within a single JS call stack, within one user gesture) gives browser-level
+synchronization. Drift over a 3-4 minute file is negligible (sub-frame).
+
+**Why NOT Web Audio API for this:** The existing player.js and the old index.html both use
+Web Audio API (AudioContext + oscillators). That was appropriate for real-time MIDI synthesis
+where you need sample-accurate scheduling. For playing pre-rendered MP3 files, HTMLAudioElement
+is simpler, has no scheduling overhead, and requires no context management. Web Audio API adds
+complexity (context resume on gesture, buffer loading, manual timing) that is unnecessary when
+files are already pre-rendered.
+
+**Why NOT a single audio element with muting:** Loading all groups into one audio context with
+individual tracks muted/unmuted would require Web Audio API or the MediaElementSource approach
+and is significantly more complex. The multi-element approach is the straightforward path.
+
+### Synchronization: Handling the User Gesture Constraint
+
+The browser requires a user gesture before any Audio element can play. Practical approach:
+
+```javascript
+// On first "Play" button click (user gesture):
+// 1. Preload all layers (already done via preload="auto")
+// 2. Play layer 0, store the start time
+// 3. On subsequent rounds, start all accumulated layers from currentTime=0
+//    (or from a saved position if implementing resume/pause)
+
+// No AudioContext needed — HTMLAudioElement.play() works with user gesture on the Play button
+```
+
+### Seek Support (Progress Bar Scrubbing)
+
+For seek, pause all active layers, update all their `currentTime`, then resume:
+
+```javascript
+function seekTo(fraction, duration) {
+    const newTime = fraction * duration;
+    for (let i = 0; i <= activeRound; i++) {
+        audioLayers[i].currentTime = newTime;
+        if (isPlaying) audioLayers[i].play();
+    }
+}
+```
+
+**Duration source:** The total song duration comes from `audioLayers[0].duration` (available
+after metadata loads). All layers have the same duration by construction.
+
+### State Machine for the Game
+
+```
+IDLE
+  |
+  | [user presses Play]
+  v
+PLAYING (layers 0..activeRound all playing)
+  |
+  | [user presses Pause / clip ends]
+  v
+PAUSED
+  |               |
+  | [Skip/Wrong]  | [Play again]
+  v               v
+  activeRound++   PLAYING (same layers, reset to t=0)
+  |
+  | [activeRound == 5 and still wrong, or correct guess at any round]
+  v
+GAME_OVER (reveal answer, show Next Song button)
+```
+
+---
+
+## Integration Points: New vs Modified Files
+
+### New Files
+
+| File | What It Is | Notes |
+|------|-----------|-------|
+| `MusicSplit/build.py` | Replaces `generate.py` — full render pipeline | Requires FluidSynth + FFmpeg installed locally |
+| `MusicSplit/songs.js` | Auto-generated SONGS data array | Committed to repo after each build run |
+| `MusicSplit/audio/<song-id>/group-N-<name>.mp3` | Pre-rendered audio per group per song | Committed to repo; ~1-3 MB per file, 6 per song |
+| `MusicSplit/soundfont.sf2` | General MIDI soundfont for FluidSynth | Not committed — too large; each developer downloads locally; add to .gitignore |
+
+### Modified Files
+
+| File | What Changes | Extent |
+|------|-------------|--------|
+| `MusicSplit/index.html` | Full rewrite of the JS game logic; HTML structure adapted from Music01s pattern | Major — new game loop, Audio elements replace oscillator player |
+| `MusicSplit/index.html` (CSS) | Mostly kept; adapt `<style>` for new UI elements (round counter, layer reveal indicators) | Minor — existing styles remain, new component styles added |
+
+### Deleted Files (after new pipeline is confirmed working)
+
+| File | Reason |
+|------|--------|
+| `MusicSplit/generate.py` | Superseded by `build.py` |
+| `MusicSplit/player.js` | Oscillator-based MIDI player — replaced by HTMLAudioElement approach |
+| `MusicSplit/utils.js` | MIDI grouping utilities — logic moved into `build.py` (Python) and songs.js (data) |
+| `MusicSplit/midi/index.json` | Superseded by `songs.js` |
+
+**Keep the MIDI files** (`midi/*.mid`) — they are the source of truth and needed for rebuilds.
+
+### Files That Do NOT Change
+
+| File | Reason |
+|------|--------|
+| `../themes.css` | Already normalized in v1.0 |
+| `Music01s/*` | Out of scope |
+| `PokeGuess/*` | Out of scope |
+| `index.html` (root) | Out of scope |
+
+---
+
+## Data Flow: End to End
+
+### Build Time
+
+```
+Developer adds new-song.mid to MusicSplit/midi/
+    |
+    v
+python build.py
+    |
+    +-- pretty_midi parses new-song.mid
+    +-- tracks grouped by get_group() → 6 buckets
+    +-- each bucket written to temp group.mid
+    +-- FluidSynth: group.mid + soundfont.sf2 → group.wav
+    +-- FFmpeg: group.wav → group.mp3 (192k, stereo)
+    +-- MP3s written to audio/new-song/group-N-<name>.mp3
+    +-- songs.js rewritten with full SONGS array
+    |
+    v
+git add audio/new-song/ songs.js
+git commit
+git push → GitHub Pages serves new files
+```
+
+### Game Runtime (Browser)
+
+```
+Browser loads MusicSplit/index.html
+    |
+    +-- <script src="songs.js"> executed → SONGS array in memory
+    +-- JS picks random song from SONGS
+    +-- Creates 6 Audio elements, sets src to group file paths
+    +-- Sets preload="auto" on all 6 → browser prefetches
+    |
+    v
+User sees game UI (round 1 of 6 shown, group 1 name hidden)
+    |
+    v
+User clicks Play
+    |
+    +-- audioLayers[0].play() (drums only)
+    +-- progress bar tracks audioLayers[0].currentTime
+    |
+    v
+User guesses wrong / skips → activeRound++
+    |
+    +-- Next Play click: audioLayers[0].play() + audioLayers[1].play()
+    +-- Both start at currentTime = 0, synchronized within one JS event loop tick
+    |
+    v
+... repeats up to round 6 (all layers playing) ...
+    |
+    v
+User guesses correct (or all 6 rounds exhausted)
+    |
+    +-- All Audio elements paused
+    +-- Answer revealed
+    +-- "Next Song" button shown
+    |
+    v
+User clicks Next Song → loadSong() resets Audio elements, picks next song
+```
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: CSS Custom Property Token Cascade
+### Pattern 1: Build Script Generates Static Data File
 
-**What:** A single root-level CSS file defines all design tokens as custom properties. Game pages inherit them by linking `../themes.css` before their own styles.
+**What:** A Python script reads source assets (MIDI files), processes them offline, and writes
+a JavaScript `const` data file that the game page loads synchronously as a `<script>` tag.
 
-**When to use:** Always. This is the pattern already started with `themes.css` — the task is to enforce it consistently across all games.
+**When to use:** Whenever game data requires computation that cannot happen in the browser
+at runtime (audio rendering, API calls with secrets, format conversion).
 
-**Trade-offs:** Extremely simple, no build tools needed, easy to theme-swap later via `data-theme` attribute; tokens are global (not scoped), which is fine for a project of this size.
+**Trade-offs:** Assets must be rebuilt and committed whenever source files change. Simple and
+reliable on GitHub Pages; no runtime dependencies on external services.
 
-**Example:**
-```css
-/* themes.css — root level */
-:root {
-  --bg:             #03052E;
-  --accent:         var(--purple);
-  --cta-gradient:   linear-gradient(90deg, var(--purple), var(--pink), var(--blue));
-  --ff-title:       'Bebas Neue', sans-serif;
-}
+**This project uses it:** `Music01s/build.py` → `songs.js` (already exists). MusicSplit adapts
+the same pattern.
 
-/* MusicSplit/index.html — after normalizing */
-<link rel="stylesheet" href="../themes.css">
-<style>
-  /* Only game-specific styles here — no :root{} override */
-  .group-row.playing { border-color: var(--accent); }
-</style>
-```
+### Pattern 2: Cumulative Layer Reveal via Multiple HTMLAudioElements
 
-### Pattern 2: Homepage-to-Game Navigation via Relative `href`
+**What:** Pre-render one MP3 per instrument group. At runtime, maintain an array of Audio
+elements. Each round adds one more to the "playing" set. All active elements start at `t=0`
+on each play, synchronized within one JS call stack.
 
-**What:** The homepage links each game with `href="GameName/index.html"`. Each game links back with `href="../index.html"` on its logo/title element.
+**When to use:** Game mechanic requires cumulative audio reveal of pre-rendered files where
+exact sync on playback start matters, but sub-millisecond sample-accurate sync does not.
 
-**When to use:** Always — this pattern is already established and correct for GitHub Pages static hosting with no routing.
+**Trade-offs:** Simple (no AudioContext), reliable cross-browser, works with user gesture on
+the Play button. Minor drift possible over long files (>5 min), negligible for typical pop songs.
+Requires pre-rendered files (build step offline).
 
-**Trade-offs:** Simple and reliable; no JavaScript navigation needed; browser back button works natively.
+**Example:** See runtime JS pattern in the "Cumulative HTML5 Audio Playback" section above.
 
-**Example:**
-```html
-<!-- In any game's index.html — back link -->
-<a href="../index.html" class="logo"><em>Music</em> 01s</a>
-```
+### Pattern 3: Game State as Round Counter + Audio Layer Array
 
-### Pattern 3: Self-Contained Game Pages (No Build Step)
+**What:** The entire game state is: (a) current song index, (b) active round number, (c)
+array of Audio elements. No complex state machine object needed.
 
-**What:** Each game is a directory with its own `index.html`. Assets (CSS, JS, media) live alongside it. No module bundler, no compilation step.
+**When to use:** Simple sequential games where state is one-dimensional (you can only go
+forward, never back mid-game).
 
-**When to use:** Appropriate for this project's scale and hosting constraints (GitHub Pages, no server).
-
-**Trade-offs:** No dead-code elimination or minification; manual HTML changes per game; scales well to ~10 games before organization becomes painful.
-
----
-
-## Data Flow
-
-### Navigation Flow
-
-```
-User visits GitHub Pages URL
-    |
-    v
-index.html (homepage)
-    |
-    +-- click game link --> GameName/index.html
-                                |
-                                +-- game loads (JS initializes)
-                                |
-                                +-- user plays game (state in JS memory only)
-                                |
-                                +-- click logo/back --> ../index.html
-```
-
-### Theming Flow (CSS Custom Properties)
-
-```
-themes.css loaded first
-    |
-    v
-:root CSS custom properties set (--bg, --text, --accent, etc.)
-    |
-    v
-Game <style> or style.css reads tokens via var(--token-name)
-    |
-    v
-Rendered page uses unified palette
-```
-
-### Game State (per-game, no persistence)
-
-```
-Page load
-    |
-    v
-JS initializes (reads data file: songs.js / fetch from API)
-    |
-    v
-User interaction --> JS mutates DOM directly
-    |
-    v
-Game ends --> JS shows result UI
-    |
-    v
-Page reload / navigate away --> all state lost (intentional, no backend)
-```
-
----
-
-## Component Boundaries
-
-### What Is Shared vs. Game-Specific
-
-| Element | Shared | Game-Specific | Notes |
-|---------|--------|---------------|-------|
-| Color tokens (--bg, --text, --accent, etc.) | Yes — `themes.css` | — | Games must not redeclare `:root` tokens |
-| Font definitions (--ff-title, --ff-mono, etc.) | Yes — `themes.css` | — | |
-| Google Fonts CDN `<link>` | Must be in each page `<head>` | — | No shared `<head>` in static HTML |
-| Noise overlay CSS + markup | Candidate for `shared.css` | Currently duplicated | Pattern is identical in all games |
-| Blur orb CSS + markup | Candidate for `shared.css` | Currently duplicated | Orb colors differ — need token alignment |
-| CSS reset (`*, *::before, *::after`) | Candidate for `shared.css` | Currently duplicated | Identical in all games |
-| Scrollbar styles | Candidate for `shared.css` | Currently duplicated | Identical in all games |
-| Game layout / UI components | — | Yes — per-game CSS | Each game has unique layout needs |
-| Game logic / state | — | Yes — per-game JS | Games are independent |
-| Navigation markup | — | Each game embeds its own back link | Consistent pattern, not a shared file |
-
----
-
-## Build Order for Normalization
-
-The recommended order to normalize the existing three games:
-
-### Step 1: Normalize `themes.css` (the foundation)
-
-Before touching any game, ensure `themes.css` is the correct canonical source:
-- Confirm it has all required tokens: `--purple`, `--pink`, `--blue`, `--cta-gradient`, semantic roles, font families.
-- Decide on the official accent color (purple/pink/blue gradient vs lime) and commit to it in `themes.css`.
-
-**Why first:** Every subsequent step depends on tokens being stable. Changing tokens after game CSS is updated causes cascading rework.
-
-### Step 2: Normalize MusicSplit (highest divergence)
-
-MusicSplit is the most out-of-sync game:
-- Remove the inline `:root {}` block from its `<style>`.
-- Add `<link rel="stylesheet" href="../themes.css">` to its `<head>`.
-- Replace hardcoded lime color values with the canonical token (`var(--accent)` or appropriate semantic token).
-- Update orb colors to match the canonical palette.
-
-**Why second:** It's the biggest gap. Fixing it validates the token system is complete enough to cover all use cases.
-
-### Step 3: Normalize PokeGuess (theme file conflict)
-
-- Remove `PokeGuess/assets/css/themes.css` entirely.
-- Ensure `PokeGuess/index.html` and `PokeGuess/game.html` only link `../themes.css`.
-- Audit `assets/css/style.css` for any hardcoded color values that should reference tokens.
-
-**Why third:** PokeGuess already links `../themes.css` — the fix is removal of the conflicting local copy, not a rewrite.
-
-### Step 4: Normalize Music01s (extract inline CSS)
-
-Music01s is token-compliant but has all CSS inline. Extract to `Music01s/style.css`:
-- Move `<style>` contents to `Music01s/style.css`.
-- Replace with `<link rel="stylesheet" href="style.css">`.
-
-**Why fourth:** It's low risk — already using the right tokens, just needs extraction for consistency.
-
-### Step 5: (Optional) Create `shared.css`
-
-If the noise overlay, orbs, reset, and scrollbar are extracted to a root-level `shared.css`, add it to each game's `<head>` after `themes.css`. This is lowest priority — correctness of tokens matters more than eliminating duplicated structural CSS.
+**Trade-offs:** Easy to reason about; no bugs from state synchronization. Limit: cannot
+support "previous round" navigation without additional tracking.
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Game-Level `:root {}` Overrides
+### Anti-Pattern 1: Web Audio API for Pre-Rendered MP3 Playback
 
-**What people do:** Define a `:root {}` block inside a game's `<style>` or CSS file with game-specific color values.
+**What people do:** Use `AudioContext`, `AudioBuffer`, `BufferSourceNode`, and manual scheduling
+for playing back MP3 files.
 
-**Why it's wrong:** Defeats the purpose of `themes.css`. Any future palette change requires visiting every game. Creates inconsistency (MusicSplit currently does this — different accent color than homepage).
+**Why it's wrong:** Adds unnecessary complexity for this use case. HTMLAudioElement handles
+MP3 decoding, seeking, and playback natively. Web Audio API is only needed when you need
+sample-accurate scheduling (beat grids, real-time mixing) or custom DSP (filters, reverb).
+Neither is needed here — files are pre-mixed.
 
-**Do this instead:** Use `themes.css` tokens everywhere. If a game needs a specific accent that differs, use a scoped selector on a container element: `.game-shell { --accent: var(--lime); }` — but prefer aligning all games to the same palette first.
+**Do this instead:** `new Audio(src).play()`. Reserve Web Audio API for the build pipeline
+if real-time mixing of rendered files is ever needed.
 
-### Anti-Pattern 2: Duplicate Theme File Per Game
+### Anti-Pattern 2: Runtime MIDI Synthesis with Oscillators
 
-**What people do:** Copy `themes.css` into each game directory (e.g., `PokeGuess/assets/css/themes.css`).
+**What people do (current MusicSplit):** Parse MIDI files in the browser, synthesize notes
+with WebAudio oscillators, schedule them with AudioContext timing.
 
-**Why it's wrong:** The copies immediately diverge. A color change requires updating N files. PokeGuess currently has this — its local copy has `#c8f060` lime while the canonical root has `#9095FF` purple.
+**Why it's wrong:** Oscillator synthesis produces poor audio quality (buzzy, thin). The
+oscillator approach in the current `player.js` is already the maximum quality achievable without
+a soundfont. Players will not recognize songs from oscillator audio.
 
-**Do this instead:** Always link to `../themes.css` from the game directory. The relative path is the correct pattern for a flat directory structure.
+**Do this instead:** Pre-render with FluidSynth + a General MIDI soundfont offline. The
+quality difference is enormous — players can actually identify instruments.
 
-### Anti-Pattern 3: Hardcoding Colors in Game CSS
+### Anti-Pattern 3: Fetching songs.js at Runtime (Using `fetch`)
 
-**What people do:** Write `color: #9095FF` or `background: rgba(144,149,255,.07)` directly in game-specific CSS instead of `color: var(--purple)` or `background: rgba(144,149,255,.07)`.
+**What people do:** Load game data via `fetch('songs.js')` and parse JSON.
 
-**Why it's wrong:** A single palette tweak in `themes.css` won't propagate. Also makes the CSS harder to read — semantic token names document intent.
+**Why it's wrong:** Adds a round-trip before the game is interactive. Also requires handling
+loading states, error states, and CORS issues when opening via `file://` locally.
 
-**Do this instead:** Always use the token: `color: var(--purple)`, `border-color: var(--accent)`, etc. The existing `themes.css` already defines the right tokens.
+**Do this instead:** `<script src="songs.js">` in the `<head>`. The file defines a `const SONGS`
+global. The game JS reads it synchronously. This is exactly how Music01s works and it is correct.
 
-### Anti-Pattern 4: Inline `<style>` Containing Both Reset and Game Styles
+### Anti-Pattern 4: One Massive MIDI File Rendered to One MP3
 
-**What people do:** Put CSS reset, token redefinition, and all game-specific styles in one large `<style>` block in `index.html`.
+**What people do:** Render the entire MIDI to a single mixed MP3, then try to control
+instrument groups via Web Audio API's `MediaElementSource` and gain nodes.
 
-**Why it's wrong:** Hard to maintain, impossible to share. Music01s currently does this — 140+ lines of CSS inline makes the HTML hard to read.
+**Why it's wrong:** MIDI-to-MP3 rendering mixes everything down. Individual instruments cannot
+be extracted from a mixed MP3 without actual stem separation (Demucs, etc.). The point of the
+build pipeline is to render each group BEFORE mixing, by isolating tracks in the MIDI file.
 
-**Do this instead:** Separate concerns into files. `themes.css` → reset-level shared styles → game-specific `style.css`.
+**Do this instead:** One render pass per group, keeping only the tracks for that group active
+in FluidSynth during each render.
+
+### Anti-Pattern 5: Keeping Unused MIDI Player Files After MP3 Pipeline Works
+
+**What people do:** Leave `player.js`, `utils.js`, and `generate.py` in the directory "just in case."
+
+**Why it's wrong:** Confuses future developers about which approach is active. The `player.js`
+imports Tone.js from CDN — if left in, it will still be loaded if accidentally referenced.
+
+**Do this instead:** Delete `player.js`, `utils.js`, and `generate.py` as part of the build
+pipeline PR. Keep `midi/*.mid` source files — they are needed for rebuilds.
+
+---
+
+## Build Order (Dependency-Ordered)
+
+This is the sequence with hard dependencies respected:
+
+```
+Step 1: Soundfont Setup [BLOCKING]
+    Download a General MIDI soundfont (e.g. GeneralUser GS, ~29 MB)
+    Place at MusicSplit/soundfont.sf2
+    Add soundfont.sf2 to .gitignore
+    Verify: fluidsynth -v soundfont.sf2 midi/test.mid → audio plays
+
+Step 2: build.py — Group Splitting Only [VERIFY GROUPS BEFORE RENDERING]
+    Implement pretty_midi parsing + get_group() mapping
+    Print group assignments for test.mid without rendering audio
+    Verify: all 6 groups have at least one track, no "Other" leakage
+
+Step 3: build.py — Full Render Pipeline [DEPENDS ON STEP 1+2]
+    Add FluidSynth render per group MIDI
+    Add FFmpeg WAV→MP3 conversion
+    Verify: audio/<song-id>/ contains 6 MP3s; each sounds like its group
+
+Step 4: songs.js Generation [DEPENDS ON STEP 3]
+    Add songs.js writer to build.py
+    Verify: SONGS array has correct structure, file paths resolve
+
+Step 5: index.html JS Rewrite [DEPENDS ON STEP 4]
+    Replace oscillator player code with HTMLAudioElement layer array
+    Wire game loop: guess/skip → activeRound++ → multi-layer play
+    Use Music01s game flow as template (autocomplete, skip, win/lose)
+    Verify: cumulative layers play in sync; progress bar works
+
+Step 6: index.html UI Adaptation [DEPENDS ON STEP 5]
+    Adapt CSS for new UI elements (round indicators, layer reveal display)
+    Verify: visual design matches Music01s game flow aesthetic
+
+Step 7: Cleanup [DEPENDS ON STEP 5+6 FULLY WORKING]
+    Delete generate.py, player.js, utils.js, midi/index.json
+    Verify: game works without those files
+```
 
 ---
 
 ## Scaling Considerations
 
-This is a static personal project, so user-scale is not a concern. The relevant "scaling" is adding new games.
+| Scale | Adjustments Needed |
+|-------|-------------------|
+| 1-10 songs | Current approach is perfect. All MP3s fit in GitHub repo. |
+| 10-50 songs | MP3 file count grows to ~300 files. Still fine for GitHub Pages. Monitor repo size — 50 songs × 6 groups × ~2 MB avg = ~600 MB. Consider lowering bitrate to 128k if needed. |
+| 50+ songs | GitHub repo size becomes a concern. Options: Git LFS, CDN hosting for audio files only, or external audio host (S3, Cloudflare R2). Out of scope for v1.1. |
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 3 games (current) | Normalize existing games to token system — no new infrastructure |
-| 5-10 games | `shared.css` at root pays off — one change propagates to all games |
-| 10+ games | Consider a simple build step (e.g., a Python script that injects shared `<head>` content) — still no bundler needed |
+### First Bottleneck
 
-### Scaling Priorities
-
-1. **First bottleneck:** Token drift — without a canonical `themes.css`, each new game invents its own colors. Fix by enforcing the single-source `themes.css` now.
-2. **Second bottleneck:** Repeated `<head>` boilerplate (font CDN link, themes.css link, viewport meta) across every new game page. A lightweight Python script that writes the shared `<head>` block could help at 10+ games, but is premature now.
+Repo size. At 6 groups × 192k MP3, a typical 3-minute song produces ~6 × 4.3 MB = ~26 MB of
+audio per song. At 10 songs that is 260 MB, already significant for a GitHub repo. Options:
+trim clip duration (render only the first 60s of each MIDI), or use 128k bitrate (still very
+good quality for game use).
 
 ---
 
 ## Integration Points
 
-### External Services
+### External Tools (Build Time Only)
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Google Fonts CDN | `<link>` in each page `<head>` | Must be present on every game page — no single shared `<head>` in static HTML |
-| PokeAPI (for PokeGuess) | `fetch()` at runtime from `data.js` | Client-side only; no CORS issues |
-| Tone.js MIDI CDN (for MusicSplit) | `<script src="cdn...">` in head | External dependency, loaded on demand |
-| GitHub Pages | Static file serving | No server-side routing; all navigation is file-path based |
+| Tool | Role | Notes |
+|------|------|-------|
+| `pretty_midi` (Python library) | Parse MIDI files, split tracks per group, write group MIDI | `pip install pretty_midi`. Parses track instrument programs. |
+| `FluidSynth` (CLI) | Render group MIDI + soundfont → WAV | `brew install fluidsynth` (macOS). System CLI, not Python. |
+| `FFmpeg` (CLI) | WAV → MP3 conversion at target bitrate | Already used by `Music01s/build.py`. Confirms it is available on this machine. |
+| Soundfont (`.sf2`) | Instrument samples for FluidSynth rendering | Download separately (GeneralUser GS recommended). Not committed. |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| `themes.css` → game pages | CSS cascade (link tag) | One-way: tokens defined in themes.css, consumed by game pages |
-| Homepage → games | HTML anchor href | One-way navigation, no state passed between pages |
-| Game JS → DOM | Direct DOM manipulation | All games use vanilla `getElementById` / `querySelector`; no virtual DOM |
-| Multi-page games (PokeGuess) | `sessionStorage` or URL params | PokeGuess uses `setup.js` → `game.html` flow; state should pass via `sessionStorage` (current implementation — confirmed in `setup.js`) |
+| `build.py` → `songs.js` | File write (Python writes JS const file) | Same pattern as Music01s |
+| `songs.js` → `index.html` | Synchronous script load → `SONGS` global | `<script src="songs.js">` before game `<script>` |
+| `index.html` → `audio/` | `new Audio(group.file)` where `group.file` is a relative path | Paths in SONGS must be relative to `index.html` location |
+| `index.html` → `../themes.css` | CSS cascade | Already in place from v1.0 |
+
+### Files NOT Touched (Explicit)
+
+| File | Why Untouched |
+|------|---------------|
+| `../themes.css` | Stable from v1.0 |
+| `Music01s/build.py` | Out of scope; it is a useful reference for the new `build.py` |
+| `PokeGuess/*` | Out of scope |
+| `index.html` (root homepage) | Out of scope |
 
 ---
 
 ## Sources
 
-- Direct codebase audit of all HTML, CSS, and JS files (2026-03-01) — HIGH confidence
-- CSS Custom Properties specification (MDN): well-established pattern for design token systems
-- GitHub Pages static hosting constraints: no server-side code, file-path-based routing only
+- Direct codebase audit — `MusicSplit/index.html`, `MusicSplit/player.js`, `MusicSplit/utils.js`, `MusicSplit/generate.py`, `Music01s/build.py`, `Music01s/index.html` (HIGH confidence)
+- HTML5 Audio API — MDN Web Docs: `HTMLAudioElement`, `.play()`, `.currentTime`, `.preload` — well-established, baseline 2010+ (HIGH confidence)
+- FluidSynth CLI — training knowledge, MEDIUM confidence on exact flags; verify with `fluidsynth --help` before implementing
+- pretty_midi Python library — training knowledge, MEDIUM confidence on track-splitting API; verify with `python -c "import pretty_midi; help(pretty_midi.PrettyMIDI)"` before implementing
+- Music01s `build.py` — direct codebase reference for the build script → data file pattern (HIGH confidence)
 
 ---
 
-*Architecture research for: RandomGame — static multi-game collection website*
+*Architecture research for: MusicSplit v1.1 — MIDI-to-MP3 build pipeline + cumulative audio game*
 *Researched: 2026-03-01*

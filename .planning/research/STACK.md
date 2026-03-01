@@ -1,14 +1,16 @@
 # Stack Research
 
-**Domain:** Static multi-page mini-game collection (vanilla HTML/CSS/JS, GitHub Pages)
+**Domain:** MIDI-to-per-instrument-group MP3 rendering pipeline (Python build script)
 **Researched:** 2026-03-01
-**Confidence:** HIGH (primary evidence is direct codebase audit; all claims grounded in what already exists or well-established web platform capabilities)
+**Confidence:** MEDIUM — FluidSynth/pretty_midi are well-established tools confirmed by training knowledge and codebase evidence (pretty_midi already imported in details_midi.py). Version numbers sourced from training data (cutoff Aug 2025); verify on PyPI before pinning.
 
 ---
 
 ## Executive Note
 
-This is a *unification* milestone, not a greenfield project. The tech stack is largely fixed by constraints (GitHub Pages, no build tools, vanilla only). Research focus is: which specific patterns and supporting tools normalize the existing three games without adding a build step.
+This is an **additive** milestone. The existing Python scripts (`generate.py`, `details_midi.py`, `build.py`) and the frontend (vanilla JS, Web Audio API) are not replaced. The only new component is a Python build script that renders MIDI files to per-instrument-group MP3s. The frontend game UI then plays those pre-rendered MP3s via `<audio>` tags — replacing the current Web Audio API oscillator synthesis with real soundfont audio.
+
+**Pipeline in one sentence:** MIDI file → pretty_midi splits tracks by GM program group → FluidSynth renders each group to WAV → ffmpeg encodes WAV to MP3 → MP3s committed to repo for GitHub Pages serving.
 
 ---
 
@@ -16,94 +18,103 @@ This is a *unification* milestone, not a greenfield project. The tech stack is l
 
 ### Core Technologies
 
-| Technology | Version/Status | Purpose | Why Recommended |
-|------------|---------------|---------|-----------------|
-| Vanilla HTML5 | Living standard | Page structure per game | Already in use; GitHub Pages constraint means no SSG/framework. Single `index.html` per game directory is the correct model for this scale. |
-| CSS Custom Properties (`:root` vars) | Baseline 2017 (100% browser support) | Shared design tokens | Already partially in use via `themes.css`. Extend — do NOT replace. The var naming scheme (`--bg`, `--s1`, `--text`, `--accent`, `--cta-gradient`) is already established and working. |
-| Vanilla ES Modules (`type="module"`) | Baseline 2018 (universal support) | Shared JS utilities without bundling | PokeGuess already uses this pattern. Adopt for any new shared code (e.g. a nav component loader or utility module). Music01s and MusicSplit use classic scripts — keep them unless refactoring is scoped. |
-| CSS `clamp()` + Flexbox/Grid | Baseline 2021 | Responsive layout | Already used on homepage and PokeGuess. Music01s uses `overflow:hidden; height:100vh` which breaks on mobile — replace with a `clamp()`-based min-height flow. |
-| Google Fonts (CDN) | Current | Bebas Neue, DM Mono, DM Sans | All pages already load the same URL. Keep it. No version to pin — use `display=swap` which all pages already do. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `pretty_midi` | 0.2.10 (latest as of Aug 2025) | MIDI parsing, per-track manipulation, writing per-group MIDI files | Already used in `details_midi.py` — zero new dependency cost. Provides clean Python objects for instruments, notes, program numbers. Native support for drum tracks (`is_drum` flag). The `PrettyMIDI.write()` method is what enables writing per-group temp MIDI files. |
+| `FluidSynth` | 2.3.x (system package) | MIDI-to-WAV rendering using a soundfont | The canonical open-source General MIDI synthesizer. Renders MIDI to audio via a soundfont file. Available as a system package (`brew install fluidsynth` / `apt install fluidsynth`). Does NOT install via pip — it is a C binary. |
+| `midi2audio` | 0.1.1 | Python wrapper that calls FluidSynth CLI | Eliminates `subprocess` boilerplate for FluidSynth calls. One-liner: `FluidSynth().midi_to_audio('in.mid', 'out.wav')`. Thin and stable — has not needed updates since FluidSynth's CLI interface is stable. |
+| `ffmpeg` (CLI) | 6.x or 7.x | WAV-to-MP3 encoding, bitrate control | Already used in `Music01s/build.py` via `subprocess.run(["ffmpeg", ...])`. Reuse the same pattern. No new dependency. Produces the final MP3 files that GitHub Pages serves. |
 
-### Supporting Libraries (Zero-Dependency Policy — Import Only What Exists)
+### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `@tonejs/midi` (CDN) | `build/Midi.js` via jsDelivr | MIDI parsing in MusicSplit | Already in use via `<script src="https://cdn.jsdelivr.net/npm/@tonejs/midi/build/Midi.js">`. Do not change. Avoid upgrading mid-milestone — no regression risk needed. |
-| No additional libraries | — | — | Every feature needed (audio playback, fetch, DOM manipulation) is native browser API. Adding even a small library (Lodash, etc.) introduces a dependency with no upside for this scale. |
+| `midiutil` | 1.2.1 | Write MIDI files programmatically | Only if per-group MIDI files need to be constructed from scratch. If pretty_midi's `PrettyMIDI.write()` is sufficient (it should be), skip this entirely. **Tentatively: do not add.** |
+| `numpy` | 1.x / 2.x | Array operations on audio data | Only if WAV post-processing (normalization, silence trimming) is needed. FluidSynth output is usually already normalized. pretty_midi already depends on numpy — it will be present transitively. Do not add explicitly unless needed. |
+| `soundfile` | 0.12.x | Read/write WAV files in Python | Only if audio inspection or normalization is added to the pipeline. ffmpeg already handles the WAV-to-MP3 step. **Do not add for the initial pipeline.** |
+
+### Soundfont Files (Data Assets — Not Python Libraries)
+
+| Soundfont | Size | Quality | Why |
+|-----------|------|---------|-----|
+| **GeneralUser GS** | ~30 MB | High — clean General MIDI | Best balance of size and quality for General MIDI. All 128 GM programs covered. Actively maintained by S. Christian Collins. Download from the official site (not pip). Recommended. |
+| FluidR3_GM.sf2 | ~140 MB | Very high — reference quality | Ships with `fluid-soundfont-gm` on Ubuntu/Debian (`apt install fluid-soundfont-gm`). Excellent quality but 140 MB is large to commit to the repo. Use if quality is the priority. |
+| TimGM6mb.sf2 | ~6 MB | Acceptable | Ships with some FluidSynth packages. Very small — acceptable if file size is a hard constraint. Noticeably lower quality on strings and choir. |
+
+**Recommendation: GeneralUser GS.** ~30 MB committed to `MusicSplit/soundfonts/` is reasonable. It is NOT committed to the GitHub Pages output — it only lives in the repo as a build asset used locally.
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| No build tool (intentional) | GitHub Pages deploys raw files | Do NOT add Vite, Parcel, or Webpack. The constraint is real: the repo is deployed directly. Any tooling must produce output files, not be part of the serving pipeline. |
-| Python `build.py` (existing) | Generates `songs.js` for Music01s | Keep as-is. Out of scope for this milestone. |
-| Python `generate.py` / `details_midi.py` (existing) | MusicSplit MIDI generation | Keep as-is. Out of scope. |
-| Browser DevTools (responsive mode) | Mobile QA | Use Chrome/Firefox responsive simulator to test at 375px (iPhone SE), 390px (iPhone 14), 768px (iPad). No additional tooling needed. |
-| Live Server (VS Code extension) or `python -m http.server` | Local dev server | Required because ES modules (`type="module"`) fail over `file://`. PokeGuess already needs this. Standardize across all games. |
+| `brew install fluidsynth` (macOS) | Install FluidSynth system binary | Required on developer machines. Not pip-installable. Document in README. |
+| `apt install fluidsynth` (Linux/CI) | Same, for Linux environments | If a GitHub Actions CI pipeline is added later. |
+| `pip install pretty_midi midi2audio` | Install Python wrappers | Pin versions in `requirements.txt` in `MusicSplit/`. |
+| `python -m pip install -r requirements.txt` | Reproduce environment | Standard Python practice. Add `MusicSplit/requirements.txt`. |
 
 ---
 
-## What NOT to Use
+## Installation
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Any JS framework (React, Vue, Svelte) | Violates project constraint; requires build step; overkill for 3 static game pages | Vanilla JS with ES modules for shared utilities |
-| CSS preprocessors (Sass, Less, PostCSS) | Requires build step; GitHub Pages serves raw files | Native CSS custom properties — already sufficient for this design system |
-| CSS framework (Tailwind, Bootstrap) | Would conflict with existing hand-crafted design language; Tailwind requires a build step; Bootstrap imposes its own variable names that clash with `--bg`, `--s1` etc. | Extend `themes.css` with shared utility classes |
-| npm dependencies in production | No bundler = no tree-shaking = full library loaded; GitHub Pages doesn't run Node | CDN scripts (jsDelivr) for the one library already needed (Tone.js MIDI) |
-| Web Components / Custom Elements | Adds complexity without benefit at 3-game scale; Safari had historical quirks (now resolved, but adds cognitive overhead) | ES module pattern for shared logic (see below) |
-| `localStorage` for theme persistence | Not needed — dark theme is the only theme for this milestone | Hardcode `data-theme="dark"` or omit (`:root` defaults are already dark) |
-| Inline `<style>` blocks inside `<script>` tags | Already used in Music01s (all CSS in `<style>` in `<head>`) — acceptable for game-specific styles, but shared/structural CSS must move to external files | External CSS files per the existing PokeGuess model |
+```bash
+# System dependency (macOS) — must be installed before pip packages
+brew install fluidsynth
 
----
+# Python packages
+pip install pretty_midi==0.2.10 midi2audio==0.1.1
 
-## Stack Patterns by Variant
+# Download soundfont (one-time, manual step)
+# GeneralUser GS: https://schristiancollins.com/generaluser.php
+# Place at: MusicSplit/soundfonts/GeneralUser.sf2
+```
 
-**For game-specific styles:**
-- Keep them in an external `style.css` per game directory (PokeGuess model).
-- If a game currently has all CSS inline in `<head>` (Music01s, MusicSplit), move shared/structural CSS to a separate `style.css`. Game-logic CSS can stay inline or move — team preference.
-
-**For shared navigation:**
-- Do NOT reach for a JS framework's router. Use a lightweight ES module (`shared/nav.js`) that injects the back-to-homepage link via `document.getElementById`. Each game's HTML has an empty `<div id="nav"></div>` placeholder.
-- Alternative (simpler): hardcode the `<a href="../index.html">` in each page — no JS needed. Given only 3 games, this is defensible.
-- Recommendation: **hardcode it**. The nav is one link. An ES module for one link is over-engineering.
-
-**For shared structural CSS (noise overlay, orbs, scrollbar):**
-- Move duplicated structural CSS (the `body::after` noise SVG, `.orb` styles, scrollbar rules) into `themes.css`. Every page already imports it. This is the highest-leverage refactor.
-
-**For mobile responsiveness:**
-- Use `min-height: 100dvh` (dynamic viewport height) instead of `height: 100vh` where fullscreen layout is needed — `dvh` accounts for mobile browser chrome. Baseline support: 2023 (Chrome 108+, Safari 15.4+, Firefox 101+).
-- Use `clamp()` for font sizes (already in homepage and PokeGuess — standardize across Music01s and MusicSplit).
-- Use `flex-wrap` on button/control rows that currently overflow on narrow screens.
+```
+# MusicSplit/requirements.txt
+pretty_midi==0.2.10
+midi2audio==0.1.1
+```
 
 ---
 
-## Critical Palette Conflict (Action Required)
+## How This Integrates with Existing Scripts
 
-This is the most important finding from the codebase audit.
+The new build script (`MusicSplit/build.py`) follows the same pattern as `Music01s/build.py`:
 
-| Game | Accent color | Theme source |
-|------|-------------|-------------|
-| Homepage | `--purple: #9095FF`, `--pink: #DBA1FF`, `--blue: #8CF7FF` | Root `themes.css` |
-| Music01s | Imports root `themes.css` — uses `var(--purple)` | Correct |
-| PokeGuess (game.html) | Imports root `themes.css` — uses `var(--purple)` | Correct |
-| PokeGuess (index.html) | Imports root `themes.css` AND `assets/css/themes.css` | Conflict: local overrides root |
-| PokeGuess `assets/css/themes.css` | `--accent: #c8f060` (lime green), different `--bg: #09090b` | Diverged palette |
-| MusicSplit `index.html` | Inline `:root` with `--accent: #c8f060` (lime green), no import of root `themes.css` | Fully diverged |
+```python
+# Pattern already established in Music01s/build.py:
+subprocess.run(["ffmpeg", "-y", "-i", src, ...], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-**Resolution:** Delete `PokeGuess/assets/css/themes.css`. Update MusicSplit to import `../themes.css`. Remove the inline `:root` block from MusicSplit. All games then inherit the root `themes.css` purple/pink/blue palette. This is the primary deliverable of the design normalization milestone.
+# New build.py adds:
+import pretty_midi
+from midi2audio import FluidSynth
 
----
+def render_group(midi_obj, track_indices, out_path, soundfont):
+    # 1. Write per-group MIDI to temp file
+    group_midi = pretty_midi.PrettyMIDI()
+    for i in track_indices:
+        group_midi.instruments.append(midi_obj.instruments[i])
+    group_midi.write("/tmp/group.mid")
 
-## Version Compatibility
+    # 2. Render to WAV via FluidSynth
+    FluidSynth(soundfont).midi_to_audio("/tmp/group.mid", "/tmp/group.wav")
 
-| Asset | Compatible With | Notes |
-|-------|----------------|-------|
-| `@tonejs/midi` (CDN, current) | Native `AudioContext` API | No known conflicts. Do not upgrade during this milestone. |
-| ES Modules (`type="module"`) | Chrome 61+, Firefox 60+, Safari 10.1+ | Universal in 2025. PokeGuess already uses this. |
-| CSS `dvh` unit | Chrome 108+, Safari 15.4+, Firefox 101+ | Safe to use; covers effectively all active mobile browsers as of 2025. |
-| CSS `clamp()` | Chrome 79+, Firefox 75+, Safari 13.1+ | Baseline 2020 — fully safe. |
-| CSS `mask-composite: exclude` (gradient border trick) | Chrome 96+, Firefox 53+, Safari 15.4+ | Used in homepage and PokeGuess `.start-btn`. Safe. `-webkit-mask-composite: xor` fallback already present. |
+    # 3. Encode to MP3 via ffmpeg (existing pattern)
+    subprocess.run(["ffmpeg", "-y", "-i", "/tmp/group.wav",
+                    "-ar", "44100", "-ac", "2", "-b:a", "192k",
+                    out_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+```
+
+The instrument grouping logic already exists in `MusicSplit/utils.js` (General MIDI program → role mapping). The new Python build script must replicate that mapping — use `pretty_midi`'s `instrument.program` and `instrument.is_drum` to reproduce the same 6-group categorization (`Drums+Perc`, `Bass`, `Brass/Wind`, `Keys/Piano+Synth`, `Guitar`, `Ensemble+Choir+Strings`).
+
+The output structure for each MIDI file `song.mid` would be:
+```
+MusicSplit/audio/song/drums.mp3
+MusicSplit/audio/song/bass.mp3
+MusicSplit/audio/song/brass_wind.mp3
+MusicSplit/audio/song/keys_piano.mp3
+MusicSplit/audio/song/guitar.mp3
+MusicSplit/audio/song/ensemble.mp3
+```
 
 ---
 
@@ -111,20 +122,64 @@ This is the most important finding from the codebase audit.
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|------------------------|
-| Extend root `themes.css` | Per-game CSS files for all theming | Never for this project — defeats the unification goal |
-| Hardcode nav link per page | ES module nav injector | Only when nav becomes complex (multiple items, active states) — not now |
-| No build tool | Vite in dev only, raw files committed | Acceptable only if the team wants HMR during development; output files still need to be committed. For 3 static games, the complexity overhead is not worth it. |
-| `dvh` for viewport height | `100vh` | Use `100vh` only as a fallback; prefer `dvh` for mobile correctness |
+| `midi2audio` wrapper | Direct `subprocess.run(["fluidsynth", ...])` | When you need non-default FluidSynth CLI flags (e.g. custom sample rate, gain). For this project, defaults are fine — use `midi2audio`. |
+| `pretty_midi` for MIDI parsing | `mido` library | Use `mido` when you need raw byte-level MIDI manipulation. `pretty_midi` is higher-level and already in the project. |
+| `pretty_midi` for MIDI parsing | `music21` library | `music21` is a full music analysis suite (~10 MB install, multiple sub-dependencies). Overkill for splitting tracks. |
+| `ffmpeg` for WAV→MP3 | `pydub` library | Use `pydub` if you need Python-native audio manipulation (trim, normalize). For a pure encode step, `ffmpeg` CLI is already present and sufficient. |
+| GeneralUser GS soundfont | Musescore General.sf3 (SF3 compressed) | SF3 is smaller but FluidSynth support varies by version. SF2 is universally supported. Stick with SF2. |
+| Per-group MIDI → FluidSynth | Real stem separation (Demucs, Spleeter) | Out of scope per PROJECT.md. Neural stem separation requires GPU, produces imperfect results, and is overkill for MIDI-sourced songs. |
+
+---
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `pyfluidsynth` (Python bindings) | Direct C bindings — more complex setup, version-sensitive, harder to install cross-platform. Overkill when all we need is "render this MIDI to a WAV." | `midi2audio` (wraps FluidSynth CLI — simpler, more portable) |
+| `music21` | Heavy dependency (~25 MB, pulls in matplotlib and more). Designed for music theory analysis, not audio rendering. | `pretty_midi` (already in project, purpose-built for MIDI manipulation) |
+| `pydub` | Adds an extra dependency when ffmpeg is already available and sufficient for WAV→MP3 encoding. | `subprocess.run(["ffmpeg", ...])` (already established pattern in build.py) |
+| `sounddevice` / `pygame.midi` | Real-time playback libraries — not for offline rendering pipelines. | FluidSynth (renders to file, not real-time) |
+| Demucs / Spleeter (ML stem separation) | Requires PyTorch (~2 GB), GPU for practical speed, and produces imperfect results on songs that already have MIDI stems. Explicitly out of scope in PROJECT.md. | FluidSynth + soundfonts (deterministic, fast, produces perfect per-instrument isolation from MIDI) |
+| Committing WAV files to the repo | WAV is uncompressed — a single song's 6 instrument groups would be ~50–100 MB. GitHub Pages has a 1 GB soft limit. | Encode to MP3 (192k) via ffmpeg as the final output; delete temp WAVs. |
+| Committing the soundfont to the `docs/` or output directory | The soundfont is a LOCAL build tool — it must not be served on GitHub Pages. | Keep soundfont in `MusicSplit/soundfonts/` and add `*.sf2` to `.gitignore` OR document that it is a build-only asset not deployed. |
+
+---
+
+## Stack Patterns by Variant
+
+**If a MIDI file has no tracks in a group (e.g. no guitar tracks):**
+- Skip rendering that group entirely — do not produce an empty MP3.
+- The game UI must handle missing groups gracefully (skip that round).
+
+**If FluidSynth is not installed (developer machine setup):**
+- The script should detect the missing binary and print a clear error: `"FluidSynth not found. Install with: brew install fluidsynth"`.
+- Do NOT silently produce empty files.
+
+**If a song's per-group MP3s already exist and the MIDI has not changed:**
+- Skip re-rendering (check mtime or existence). Mirrors how `Music01s/build.py` skips nothing (always rebuilds) — but for MusicSplit re-rendering is expensive (FluidSynth is slow), so a skip-if-exists check is worthwhile.
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|----------------|-------|
+| `pretty_midi==0.2.10` | Python 3.8+ | Depends on `numpy`, `mido`, `six`. All stable. |
+| `midi2audio==0.1.1` | FluidSynth 1.x and 2.x CLI | The wrapper calls `fluidsynth` binary directly; both major versions use the same CLI flags for basic rendering. |
+| `FluidSynth 2.3.x` | GeneralUser GS SF2, FluidR3_GM SF2, TimGM6mb SF2 | All major SF2 soundfonts work with FluidSynth 2.x. SF3 format requires FluidSynth 1.1.6+. |
+| `ffmpeg 6.x / 7.x` | WAV input, MP3 output via libmp3lame | The same flags used in `Music01s/build.py` (`-ar 44100 -ac 2 -b:a 192k`) work identically. |
+| Python 3.10+ | All above packages | Recommended minimum. macOS 13+ ships Python 3.x; Linux CI defaults to 3.10+. |
 
 ---
 
 ## Sources
 
-- Direct codebase audit (HIGH confidence) — `/themes.css`, `/index.html`, `/Music01s/index.html`, `/MusicSplit/index.html`, `/PokeGuess/index.html`, `/PokeGuess/game.html`, `/PokeGuess/assets/css/themes.css`, `/PokeGuess/assets/css/style.css`
-- MDN Web Docs (training data, HIGH confidence for CSS custom properties and ES modules — both are established standards since 2017-2018 with 100% baseline support)
-- Can I Use baseline data (training data, MEDIUM confidence — `dvh` unit confirmed ~2023 baseline; verify at caniuse.com if critical)
+- Codebase audit (HIGH confidence) — `MusicSplit/details_midi.py` confirms `pretty_midi` is already used; `Music01s/build.py` confirms `ffmpeg` via `subprocess` is the established pattern; `MusicSplit/utils.js` defines the 6-group GM program mapping that Python must replicate.
+- Training knowledge for `pretty_midi`, `midi2audio`, `FluidSynth` (MEDIUM confidence — these are stable, long-established tools; version numbers reflect Aug 2025 training cutoff; verify `pretty_midi` and `midi2audio` on PyPI before pinning).
+- `FluidSynth` project (MEDIUM confidence — well-established C synthesizer, version 2.3.x is current as of Aug 2025; verify at https://www.fluidsynth.org/).
+- GeneralUser GS soundfont (MEDIUM confidence — active project by S. Christian Collins; verify current version at https://schristiancollins.com/generaluser.php).
 
 ---
 
-*Stack research for: RandomGame — static mini-game collection unification milestone*
+*Stack research for: MusicSplit — MIDI-to-per-instrument-group MP3 rendering pipeline*
 *Researched: 2026-03-01*

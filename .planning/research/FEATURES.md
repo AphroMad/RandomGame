@@ -1,28 +1,25 @@
 # Feature Research
 
-**Domain:** Static mini-game collection portal (vanilla HTML/CSS/JS, GitHub Pages)
+**Domain:** Instrument-layering music guessing game (bandle.app-style, MusicSplit v1.1 transformation)
 **Researched:** 2026-03-01
-**Confidence:** HIGH (based on direct codebase audit of all 3 games + homepage)
+**Confidence:** MEDIUM — WebSearch and WebFetch unavailable; analysis based on direct codebase audit + training knowledge of bandle.app and heardle-class games (confirmed from MusicSplit source code which cites "Inspired by bandle.app"). Specific bandle.app feature details are from training data (knowledge cutoff August 2025); core game mechanics are stable and well-documented in the community.
 
 ---
 
-## Context: What The Codebase Actually Has Today
+## Context: What the New Game Must Be
 
-Before defining features, a precise audit of current state:
+The existing MusicSplit is a MIDI visualizer: load a MIDI file, click any instrument group, hear it via oscillator synthesis. It is not a game. The v1.1 milestone transforms it into a guessing game where:
 
-| Area | Homepage | Music01s | MusicSplit | PokeGuess |
-|------|----------|----------|------------|-----------|
-| Links `themes.css` | YES | YES | NO (inline `:root`) | YES |
-| Uses correct CSS variables | YES | YES | NO (own `--accent: #c8f060`) | PARTIAL (orbs use green tints) |
-| Separate CSS file | NO (inline) | NO (inline) | NO (inline) | YES |
-| `lang` attribute | `fr` | `en` | `en` | `fr` |
-| Back-to-homepage nav | — | Logo text link | Logo text link | Logo text link |
-| Dedicated back button | — | NO | NO | NO |
-| Mobile media queries | NO | NO | NO | 1 rule (420px) |
-| Noise overlay | YES | NO | YES | YES (via style.css) |
-| Orbs | YES | NO | YES (wrong colors) | YES (wrong colors) |
+1. The player hears only the first instrument layer (e.g. Drums)
+2. They guess the song title (or skip)
+3. On each failure/skip, a new layer is added (e.g. Drums + Bass)
+4. After 6 rounds — if still wrong — the song is revealed
 
-This audit drives every feature decision below.
+This is the bandle.app model. The key changes vs. the existing MusicSplit:
+- **Audio source:** oscillator synthesis (current) → pre-rendered per-group MP3 files (new)
+- **Playback model:** play any single group freely (current) → cumulative locked layers, guess/skip gating the next reveal (new)
+- **UI model:** instrument explorer with play buttons (current) → Music01s-style guess/skip flow adapted for instrument layers (new)
+- **Build pipeline:** MIDI index only (current) → MIDI → per-group MP3 rendering via FluidSynth (new)
 
 ---
 
@@ -30,102 +27,148 @@ This audit drives every feature decision below.
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete.
+Features that a bandle-style game must have. Missing any = game feels broken or unfair.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Shared theme variables** | All 3 games must read the same color tokens from `themes.css` — without this, colors drift whenever `themes.css` is updated | LOW | MusicSplit has its own inline `:root` with completely different colors (`#c8f060` accent). Must remove and replace with `themes.css` import. |
-| **Consistent accent color palette** | Users perceive the games as one product. Purple/pink/blue gradient should appear in all games, not green in MusicSplit and wrong-tint orbs in PokeGuess. | LOW | Fix orb rgba values in MusicSplit and PokeGuess style.css to match homepage (purple `rgba(144,149,255,...)`, cyan `rgba(140,247,255,...)`). |
-| **Consistent background treatment** | Noise overlay + blur orbs are the homepage's visual signature. Three of three games should have them. | LOW | Music01s is missing both the noise overlay and orbs entirely. Add both (copy from homepage). |
-| **Consistent typography rendering** | All 3 fonts (Bebas Neue, DM Mono, DM Sans) are already loaded in all pages. They must be applied via the same CSS variable names (`var(--ff-title)`, `var(--ff-body)`, `var(--ff-mono)`). | LOW | Already correct in Music01s and PokeGuess. MusicSplit references the variables but defines them locally — will work once themes.css is adopted. |
-| **Functional back-navigation** | Users expect a clear, consistent path back to the homepage from any game. Current logo-link works but is visually inconsistent across games. | LOW | Standardize logo markup and position across all 3 games. A consistent logo-as-home-link pattern (already present) just needs visual normalization. |
-| **Mobile-readable layout** | Phones are primary devices for casual gaming among friends. A layout that breaks or requires horizontal scrolling at 375px is broken. | MEDIUM | Music01s uses `overflow: hidden` + `height: 100vh` — clips content on short mobile screens. MusicSplit has no responsive rules. Homepage has no responsive rules but centers well by default. Each game needs a mobile pass. |
-| **Touch-friendly tap targets** | On mobile, buttons must be at minimum 44px tall to be reliably tappable without zooming. | LOW | Audit each game's action buttons (Skip, Confirm, QCM buttons, Play). Most are already close; some need min-height enforcement on small screens. |
-| **Consistent page `<title>` format** | Users with multiple tabs open need to identify games. | LOW | Standardize to e.g. `Music 01s — Random Games`, `PokeGuess — Random Games`. |
-| **Consistent `lang` attribute** | Homepage is `lang="fr"`. Games mixing `en`/`fr` is inconsistent and affects screen readers/SEO. | LOW | Music01s and MusicSplit have `lang="en"`. Decide on one value (fr, given the audience) and apply consistently. |
+| **Cumulative audio layers (additive reveal)** | Core mechanic. Each round adds one more instrument group to the audio mix. Hearing only drums round 1, then drums+bass round 2 etc. is what makes the game work. Without cumulativity, it's just "guess from one layer" — trivial and not the genre. | MEDIUM | Requires either: (a) mixing N separate MP3 tracks simultaneously in the browser, or (b) pre-rendering cumulative MP3s (1-layer, 2-layer, ... 6-layer). Option (b) is simpler: one audio element, no sync headaches. Option (a) is more flexible but requires Web Audio API multi-track sync, which Music01s doesn't need. |
+| **6-round progression with defined layer order** | Users expect the hardest-to-recognize layer first (drums alone), building to full mix. The layer order Drums+Perc → Bass → Brass/Wind → Keys/Piano+Synth → Guitar → Ensemble+Choir+Strings is already decided in PROJECT.md. Deviating from left-to-right difficulty ordering breaks player expectation. | LOW | Layer order is already specified. No research needed. The browser UI must label each round with its instrument group name(s). |
+| **Skip mechanic per round** | Standard in the genre (heardle, bandle, wordle-class games). Skipping costs a round: you get the next layer but your attempt is marked skipped. Without skip, players who genuinely don't know are stuck. | LOW | Identical to Music01s skip logic. Reuse: `skipStep()` pattern from Music01s. Round increments, next layer unlocks, input clears. |
+| **Text guess with autocomplete** | Free-text guessing with a filtered dropdown is the Heardle/Bandle standard. Without autocomplete the answer space is too open — players argue about exact titles. Autocomplete also constrains valid answers to the song list, enabling unambiguous correct/wrong detection. | LOW | Identical to Music01s `onInput()` + autocomplete dropdown pattern. Reuse directly. Song data comes from a `songs.js`-like file generated by the Python build pipeline. |
+| **Correct/wrong/skipped visual feedback per row** | Each of the 6 rows must show its outcome (correct = green, wrong = red, skipped = grey, unused = empty). This is the wordle-row pattern and users in this genre expect it. Without it, history of attempts is invisible. | LOW | Identical to Music01s attempt-row CSS pattern. Reuse: `.attempt-row.correct`, `.attempt-row.wrong`, `.attempt-row.skipped`, `.attempt-row.revealed`. |
+| **Current layer indicator** | Player must know which layer they are currently hearing. Without labeling "You are hearing: Drums + Bass", the game is confusing, especially on rounds 3+. | LOW | A small label above or below the audio controls showing accumulated layer names. No precedent in Music01s (single audio clip), but required here. One line of text, updated on each skip/wrong. |
+| **Win / lose end state with song reveal** | On correct guess (win) or exhausting all 6 rounds (lose), the song title + artist must be revealed and the game must stop accepting input. Standard in the genre. | LOW | Win: mark correct row purple, flash play button, reveal song, show Next. Lose: mark revealed row grey, flash play button red, reveal song, show Next. Identical to Music01s `win()` / `lose()` logic. |
+| **Next Song button post-round** | After win or lose, player must be able to advance to the next song without reloading the page. Without this the game feels broken. | LOW | Identical to Music01s `nextSong()` / `loadSong()` pattern. Audio must stop, all rows reset, layer counter resets to 0, new audio loaded. |
+| **Pre-rendered MP3 audio (not oscillator synthesis)** | The current oscillator synthesis sounds like a MIDI ringtone — players cannot recognize real songs from it. Without real audio, the game is unplayable as a guessing game. This is the foundational requirement that makes the game function. | HIGH | Python build pipeline: MIDI → FluidSynth + soundfont → per-group WAV → MP3. Requires FluidSynth, a soundfont (e.g. GeneralUser GS or MuseScore GM), and ffmpeg. Already decided in PROJECT.md. The pipeline produces `[song]/drums.mp3`, `[song]/drums-bass.mp3`, etc. (cumulative) or separate per-group files mixed at playback. |
+| **Song data manifest (songs.js equivalent)** | The game needs a machine-readable list of songs with their file paths and display names. Without this, the autocomplete has nothing to search and the game cannot load songs. | LOW | Python pipeline must output a `songs.js` (matching Music01s pattern) listing all available songs. Each song entry needs: title, artist, and paths to its 6 cumulative layer MP3s (or 6 separate group MP3s). |
+| **Play/Pause button for current audio layer** | Players must be able to replay the current layer as many times as they want before guessing. A single play/pause button (same as Music01s) is expected. Without replay, the game is unfair — players who didn't catch it can't re-listen. | LOW | Identical to Music01s play button. Audio element (HTMLAudioElement) pointing to the current cumulative MP3. |
 
 ---
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not required, but valued.
+Features that go beyond the bandle.app baseline and are achievable within this project's constraints.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Polished inter-game transitions** | Clicking a game from the homepage feels like a deliberate entry into a distinct experience rather than just a page load. A subtle fade or slide entry on game load costs almost nothing and adds perceptual quality. | LOW | CSS `@keyframes` fade-in on `.shell`/`.wrap` on page load. Pure CSS, no JS needed. |
-| **Standardized game header component** | Currently each game invents its own header markup. A unified pattern (logo left, optional subtitle right, consistent sizing) would make the portal feel like a product family. | LOW | Not a JS component — just a documented HTML+CSS pattern applied consistently. |
-| **Viewport-unit safety for mobile** (`dvh` instead of `vh`) | `100vh` is broken on mobile browsers due to address bar height. `100dvh` (dynamic viewport height) is now widely supported and fixes layouts that clip on mobile. | LOW | Music01s uses `height: 100vh` and `overflow: hidden`. Replacing with `min-height: 100dvh` + scroll would fix the clip. |
-| **Keyboard navigation support** | Power users (and accessibility) benefit from keyboard controls. Music01s already has keyboard support for autocomplete. | MEDIUM | Music01s is already good. PokeGuess QCM could support number keys (1-4). MusicSplit could support spacebar for play/stop. |
-| **Semantic HTML cleanup** | Using `<header>`, `<main>`, `<nav>` properly improves accessibility and screen reader flow without any visual change. | LOW | Currently all games use `<div class="shell">` or `<div class="wrap">` as the root container. |
+| **Layer name label on each attempt row** | Bandle.app shows attempt rows but doesn't always clearly label which layer corresponds to which row. Explicitly labeling "Round 1: Drums" in the attempt row on skip/wrong makes the game history readable and teaches players about instrumentation. | LOW | Extend the attempt-row text: instead of just "Skipped", show "Skipped — Drums". On wrong: "Artist name (wrong) — Drums+Bass". |
+| **Timeline progress bar (from Music01s)** | Music01s has a visual timeline showing how far into the clip you are. MusicSplit's current version has a bottom progress bar with scrubbing. Adapting the Music01s-style segment timeline to show "rounds remaining" (6 segments, filled as you use them) provides at-a-glance game state. | LOW | Reuse Music01s `.tl-track` / `.tl-segs` / `.tl-fill` pattern. 6 segments = 6 rounds. Fill as rounds are used. |
+| **Visible instrument group names in the UI** | Rather than hiding what layers have been revealed, display the cumulative layer names as a stack (e.g. a small chip/badge per revealed layer). This adds educational value — players learn which instruments they're hearing. | LOW | Small CSS badge elements below the audio controls, added as each layer unlocks. Pure HTML/CSS, no JS beyond appending an element per round. |
 
 ---
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **JavaScript component system / framework** | "Reuse the header across all pages cleanly" | Requires build tooling, breaks the "static files only" constraint, GitHub Pages cannot run Node.js. Even vanilla JS `fetch()` for HTML partials has CORS issues when opened as `file://` locally. | Document a copy-paste HTML pattern for the header. Three copies of 5 lines is fine for 3 games. |
-| **CSS preprocessor (Sass/Less)** | "Avoid duplication in CSS variables" | Requires a build step. The whole project is deliberately no-build-step. | `themes.css` with CSS custom properties already solves the variable duplication problem. This is the right approach and is already in use. |
-| **Local storage score persistence** | "Remember my high score" | Adds state management, score display UI, and reset UI — significant scope expansion for a friends-group game that rotates through songs/pokemon randomly each session | Out of scope per PROJECT.md. Not needed for the current use case. |
-| **Animated theme switcher (light/dark toggle)** | `themes.css` already has a light theme stub | Adding UI toggle adds a settings panel or button to every page, complicates styling, and the light theme stub is incomplete. The dark theme is the product's identity. | Keep dark theme only. The light theme stub in `themes.css` can stay as scaffolding for later but no toggle UI. |
-| **Service Worker / PWA** | "Make it installable / work offline" | Games load audio and Pokémon images from remote sources (PokeAPI, local mp3s). Offline caching is complex and not needed for the use case. | Don't build. GitHub Pages already has fast CDN. |
-| **Game template generator** | "Make it easy to add the 4th game" | PROJECT.md explicitly calls this out of scope for this milestone. Building the template before patterns are solidified leads to a bad template. | Polish the 3 existing games first, then extract the pattern as a template in a future milestone. |
+| **Real-time multi-track mixing (Web Audio API mix of N MP3s)** | "More flexible — you could let players toggle layers on/off" | Synchronizing N separate audio buffers in the browser is error-prone: clock drift between elements, AudioContext autoplay restrictions per element, resume latency. For this project (static GitHub Pages, no server), it creates unnecessary complexity. Cumulative pre-rendered MP3s avoid all sync issues. | Pre-render cumulative MP3s: `layer-1.mp3` = drums only, `layer-2.mp3` = drums+bass, etc. Swap one audio element src per round. Zero sync risk. |
+| **Stem separation (Demucs / AI vocal isolation)** | "Get stems from any MP3, not just MIDI files" | Demucs requires a GPU server or very long local processing time. GitHub Pages cannot run server-side code. The output quality for non-vocal tracks is inconsistent and often leaks bleed between stems. Scope explicitly excludes this (PROJECT.md). | MIDI-to-MP3 via FluidSynth is deterministic, produces clean separation by design, and runs locally in seconds. |
+| **Score persistence / leaderboard** | "Show how many songs I guessed correctly this session" | Requires localStorage state management, score display UI, and reset UI. PROJECT.md explicitly excludes user accounts and score tracking — this is a friends-group game where each session is fresh. | No persistence. The win/lose flash animation and the "All X songs played" end screen are sufficient reward signals. |
+| **Per-song difficulty rating** | "Some songs are too easy/hard — rate them" | Adds a rating UI, storage, and a difficulty signal that may not match individual player knowledge. A song that is easy for one friend is impossible for another. | The layer-order already creates natural difficulty progression within each song. No additional difficulty signal needed. |
+| **Song selection / skip a song mid-game** | "I don't know this song, let me pick another" | Breaks the game contract. The challenge IS not knowing. Allowing voluntary song changes degrades the competitive element (friends play the same sequence). | The Skip button already lets players give up on a round. After 6 skips the song is revealed and Next is shown. That is the correct exit path. |
+| **Free-text guessing without autocomplete** | "My song title has a typo in the list — I should still get credit" | Open text matching requires fuzzy matching logic. Music01s uses `norm()` + include-based matching which handles minor typos but cannot handle completely different text. Without autocomplete constraining inputs, wrong answers become ambiguous. | Autocomplete to the canonical song list. If the list has a typo, fix the source data, not the matching logic. |
+| **Tone.js oscillator synthesis (existing MusicSplit player)** | "Already built — why replace it?" | Oscillator synthesis produces electronic beeps, not recognizable audio. A guessing game requires that the audio sounds like the original song. The existing synthesis is appropriate for an instrument explorer but not for a guessing game. | Replace with pre-rendered MP3 playback via HTMLAudioElement. The existing player.js / oscillator code becomes obsolete. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[themes.css adoption in MusicSplit]
-    └──enables──> [Consistent accent color palette across all games]
-                      └──enables──> [Consistent background treatment (correct orb tints)]
+[Pre-rendered MP3 pipeline (Python/FluidSynth)]
+    └──required for──> [Cumulative audio layer playback]
+    └──required for──> [Song data manifest (songs.js)]
 
-[Mobile layout audit per game]
-    └──requires first──> [dvh viewport unit adoption] (low-hanging fix)
+[Song data manifest (songs.js)]
+    └──required for──> [Autocomplete guess input]
+    └──required for──> [Next Song / loadSong() flow]
 
-[Standardized game header component]
-    └──enhances──> [Consistent back-navigation]
-    └──enhances──> [Consistent page <title> format]
+[Cumulative audio layer playback]
+    └──required for──> [Play/Pause button]
+    └──required for──> [Layer name indicator]
+    └──enables──> [Timeline progress bar]
 
-[Consistent lang attribute]
-    └──independent of everything else, do it first]
+[6-round progression with layer order]
+    └──required for──> [Skip mechanic per round]
+    └──required for──> [Correct/wrong/skipped attempt rows]
+    └──required for──> [Win/Lose end state with reveal]
+
+[Skip mechanic per round]
+    └──feeds into──> [6-round progression with layer order]
+
+[Win/Lose end state]
+    └──required for──> [Next Song button]
 ```
 
 ### Dependency Notes
 
-- **themes.css adoption in MusicSplit requires doing before color work:** MusicSplit's inline `:root` overrides any themes.css variables. Until the inline block is removed and replaced with `<link rel="stylesheet" href="../themes.css">`, no color fixes will take effect there.
-- **dvh viewport fix unblocks the mobile layout audit:** Music01s's `overflow: hidden` + `100vh` approach must be restructured before mobile CSS rules are meaningful — adding media queries on top of a broken layout won't help.
-- **Header standardization enhances but doesn't block:** Games are already navigable. The header pattern can be applied incrementally.
+- **MP3 pipeline before any game UI work:** The game UI can be sketched in advance, but cannot be validated until real MP3 audio exists. Oscillator synthesis is a non-representative substitute for testing "does this sound like the song." All UI testing on placeholder audio will give false confidence. Build the pipeline first.
+- **songs.js equivalent before autocomplete:** The autocomplete filters `SONGS` array entries. If no songs.js exists, the autocomplete has nothing to search. This is why Music01s's `songs.js` is generated by `build.py` before running the game.
+- **Cumulative MP3s or per-group MP3s decision affects UI:** If the pipeline produces cumulative files (`layer-1.mp3` through `layer-6.mp3`), the game just swaps `audio.src` on each round — trivial. If it produces separate per-group files, the game must mix N audio elements in sync — much harder. Decide: **cumulative pre-rendered files are the correct approach.** One AudioElement, one src swap per round.
+- **Layer order is fixed by PROJECT.md:** Drums+Perc → Bass → Brass/Wind → Keys/Piano+Synth → Guitar → Ensemble+Choir+Strings. The pipeline must render in this order. The UI displays this order. No feature requires changing this.
+
+---
+
+## Existing Music01s Code to Reuse
+
+This section directly answers the downstream consumer question: which Music01s patterns map to MusicSplit game features.
+
+| Music01s Pattern | Maps to MusicSplit Feature | Reuse Note |
+|-----------------|--------------------------|------------|
+| `CLIPS = [0.1, 0.5, 2, 4, 8, 16]` round definitions | Replace with `LAYERS = ['Drums+Perc', 'Bass', 'Brass/Wind', 'Keys/Piano+Synth', 'Guitar', 'Ensemble+Choir+Strings']` | Same concept, different values. Round index = layer index. |
+| `audio = new Audio()` + `audio.src = songs[songIdx].file` | `audio.src = song.layers[round]` (path to cumulative MP3 for this round) | Direct reuse. No Web Audio API needed. |
+| `playClip()` / `pauseClip()` / `stopClip()` | `playLayer()` / `pauseLayer()` / `stopLayer()` | Direct reuse. Only the src target changes. |
+| `skipStep()` → increment round, mark row skipped | Same — but also swap audio to next cumulative layer | Add one line: `audio.src = song.layers[round]` before playing. |
+| `submitGuess()` → correct check → `win()` or mark wrong | Same — correct check against song title/artist | Direct reuse. Normalization function `norm()` reuse unchanged. |
+| `win()` / `lose()` → flash play button, reveal song, show Next | Same behavior, same visual | Direct reuse. |
+| `loadSong()` → reset all rows, reset audio, reset input | `loadSong()` → same, also reset `round = 0`, `audio.src = song.layers[0]` | Add layer reset. Same structure. |
+| Attempt rows (`.attempt-row`, `.attempt-row.correct`, `.attempt-row.wrong`, `.attempt-row.skipped`, `.attempt-row.revealed`) | Same CSS classes, same visual language | Direct reuse. Optionally add layer name text to row content. |
+| Autocomplete (`onInput()`, `pickAC()`, `onKey()`, `acWrap`) | Same pattern against MusicSplit song list | Direct reuse. Song list format may need `layers` array added. |
+| `norm()` / `esc()` / `shuffle()` utility functions | Same | Direct reuse, verbatim. |
+| `.tl-track` / `.tl-segs` / `.tl-fill` timeline | Repurpose as "rounds remaining" indicator (6 segments) | Reuse visually. Fill behavior changes: segments fill as rounds are used, not as audio plays. |
+| `.play-btn` / `flash-win` / `flash-lose` animations | Same play button, same flash animations | Direct reuse. |
+| `endGame()` screen | Same "All X songs played" end screen | Direct reuse. |
+
+**What is NOT reused from Music01s:**
+- Clip duration logic (`CLIPS` array, `TOTAL_DUR`, time-based progress) — replaced by layer-index-based round system
+- The `startClip()` / `scheduleStop()` / `tickProgress()` timer logic — not needed; MP3 plays until user stops it or advances
+- `setTlProgress()` / `setTlLabel()` — replaced by round-counter display
+
+**What is NOT reused from existing MusicSplit:**
+- Oscillator synthesis engine (player.js inline code) — obsolete with MP3 playback
+- `getRole()` / `groupTracksByRole()` (utils.js) — only needed by the build pipeline, not the game UI
+- MIDI loading / Tone.js CDN import — removed entirely from game UI
+- Per-group play buttons / instrument explorer layout — replaced by game round system
 
 ---
 
 ## MVP Definition
 
-This milestone is a polish milestone, not a feature milestone. MVP = all table stakes delivered for all 3 games.
+### Launch With (v1.1)
 
-### Launch With (this milestone)
+Minimum viable product — what's needed for the game to be playable and fun.
 
-- [x] `themes.css` adopted in MusicSplit (remove inline `:root`, add link tag)
-- [x] Accent color palette consistent across all games (fix orb rgba values, MusicSplit accent)
-- [x] Noise overlay + orbs added to Music01s
-- [x] `lang` attribute unified to `fr` across all pages
-- [x] Mobile layout functional on 375px width for all 3 games (no horizontal scroll, no clipped content)
-- [x] Touch targets minimum 44px on all primary action buttons
-- [x] Standardized logo/header markup across all 3 games
-- [x] Consistent `<title>` format
+- [ ] **Python build pipeline (MIDI → per-group MP3 → cumulative MP3s → songs.js)** — without real audio, nothing else matters
+- [ ] **Cumulative audio playback (swap audio.src per round)** — the core mechanic
+- [ ] **6-round guess/skip flow** — the game loop; one guess or skip per round, advancing to next layer
+- [ ] **Autocomplete guess input against songs.js** — correct answer validation
+- [ ] **Attempt rows with correct/wrong/skipped/revealed states** — game history tracking
+- [ ] **Layer name indicator showing currently-heard layers** — essential for orientation ("what am I hearing?")
+- [ ] **Win/Lose state with song reveal and Next Song button** — game completion and progression
 
-### Add After Validation (v1.x polish)
+### Add After Validation (v1.1 polish)
 
-- [ ] Fade-in animation on page entry — add only after core layout is stable
-- [ ] Keyboard navigation improvements for PokeGuess and MusicSplit
-- [ ] Semantic HTML (`<main>`, `<header>`, `<nav>`) pass
+Features to add once the core loop is confirmed to work with real audio.
+
+- [ ] **Layer name in attempt row text** — add "Drums" / "Drums+Bass" label to the row content on skip/wrong, so history is readable
+- [ ] **Visual layer badge strip** — small chips below audio controls showing accumulated layer names as rounds progress
+- [ ] **Timeline as round indicator** — 6 segments, fill one per round used, replaces Music01s time-based fill
 
 ### Future Consideration (v2+)
 
-- [ ] Game template pattern extraction — only valuable when adding a 4th game
-- [ ] Light theme completion — only if explicitly requested
+Features to defer.
+
+- [ ] **Mobile responsiveness for MusicSplit game** — mobile layout was deferred in v1.0; MusicSplit game inherits the same debt
+- [ ] **Keyboard navigation** — spacebar for play/pause; enter to confirm guess; already works in Music01s, carry over
 
 ---
 
@@ -133,51 +176,54 @@ This milestone is a polish milestone, not a feature milestone. MVP = all table s
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| MusicSplit adopts themes.css | HIGH (visual coherence) | LOW | P1 |
-| Fix orb colors in PokeGuess + MusicSplit | HIGH (brand consistency) | LOW | P1 |
-| Add noise overlay + orbs to Music01s | HIGH (visual coherence) | LOW | P1 |
-| Mobile layout — Music01s (overflow/vh fix) | HIGH (usability) | MEDIUM | P1 |
-| Mobile layout — MusicSplit | HIGH (usability) | MEDIUM | P1 |
-| Mobile layout — Homepage | MEDIUM (already centered OK) | LOW | P1 |
-| Touch targets audit | HIGH (usability on mobile) | LOW | P1 |
-| Unified lang attribute | LOW (UX) | LOW | P1 (trivial, do it) |
-| Consistent page `<title>` | LOW | LOW | P1 (trivial, do it) |
-| Standardized header markup | MEDIUM | LOW | P2 |
-| Page entry fade animation | MEDIUM | LOW | P2 |
-| Keyboard nav improvements | LOW | MEDIUM | P3 |
-| Semantic HTML pass | LOW (accessibility) | LOW | P3 |
+| Python build pipeline (MIDI → cumulative MP3s) | HIGH — game is impossible without real audio | HIGH — FluidSynth install, soundfont sourcing, per-group rendering logic | P1 |
+| Cumulative audio layer playback | HIGH — core mechanic | LOW — one AudioElement, src swap per round | P1 |
+| 6-round guess/skip flow | HIGH — the game | LOW — reuse Music01s round logic | P1 |
+| Autocomplete guess input | HIGH — required for fair play | LOW — reuse Music01s autocomplete | P1 |
+| Attempt rows (correct/wrong/skipped) | HIGH — game history | LOW — reuse Music01s CSS | P1 |
+| Win/Lose state + song reveal | HIGH — game completion | LOW — reuse Music01s win()/lose() | P1 |
+| Next Song button | HIGH — game continuity | LOW — reuse Music01s nextSong() | P1 |
+| Layer name indicator (current round) | MEDIUM — orientation aid | LOW — one text label element | P1 |
+| Layer name in attempt row text | MEDIUM — history readability | LOW — append text to row | P2 |
+| Visual layer badge strip | LOW — aesthetic | LOW — CSS chips | P2 |
+| Timeline as round indicator | MEDIUM — familiar visual from Music01s | LOW — reuse CSS, change fill logic | P2 |
+| Mobile responsive layout | HIGH — usability | MEDIUM — same work as deferred v1.0 | P3 (separate milestone) |
 
 **Priority key:**
-- P1: Must have for this milestone
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+- P1: Must ship for v1.1 to be a functional game
+- P2: Should ship in v1.1 if time allows; adds polish
+- P3: Defer to next milestone
 
 ---
 
 ## Competitor Feature Analysis
 
-*Note: WebSearch unavailable during research session. Analysis based on direct codebase audit and knowledge of the domain.*
+*Note: WebSearch and WebFetch unavailable during this research session. Analysis based on training knowledge of bandle.app (confirmed referenced in MusicSplit source code), heardle.app (now defunct), and wordle-class games. Confidence: MEDIUM.*
 
-Sites like [wordle.com](https://wordle.com), [heardle](https://heardle.app), and [bandle.app](https://bandle.app) — all in the same genre as the games here — share these patterns:
-
-| Feature | Wordle-class sites | Bandle.app | Our Approach |
-|---------|-------------------|------------|--------------|
-| Color system | Single CSS file with custom properties | Single design language per game | Use `themes.css` as single source of truth |
-| Mobile layout | Full viewport, no horizontal scroll, large tap targets | Scroll-friendly, thumb-reachable controls | Fix overflow/vh, ensure 44px targets |
-| Navigation | Browser back, no explicit back button | Back link in header | Logo-as-link is sufficient for 3 games |
-| Visual identity | Distinctive palette applied consistently | Green accent throughout | Purple/cyan gradient consistently applied |
-| Animations | Minimal, purposeful (tile flip on Wordle) | Minimal | Existing flash-win/flash-lose in Music01s is correct pattern |
+| Feature | Bandle.app | Heardle (archived) | Our Approach |
+|---------|------------|-------------------|--------------|
+| Layer reveal mechanic | Cumulative: each round adds instruments. Starts with bass/lead melody, adds accompaniment. | No layers — single growing audio clip (1s → 2s → 4s → etc.) | Cumulative layers (bandle model), not clip-length grow (heardle model). Already decided. |
+| Audio source | Pre-rendered stems from real recordings (professional quality) | Pre-rendered MP3 clips from real recordings | MIDI → FluidSynth soundfont MP3s (synthetic but deterministic and cleanly separated) |
+| Number of rounds | 6 | 6 | 6 (already decided) |
+| Guess mechanic | Autocomplete dropdown against song database | Autocomplete dropdown against song database | Autocomplete against local songs.js (same pattern as Music01s) |
+| Attempt rows | 6 rows, color-coded (win/skip/wrong/unused) | 6 rows, color-coded | Same, reusing Music01s CSS |
+| Song reveal on loss | Shows song title + artist | Shows song title + artist | Same |
+| Daily reset | One song per day, shared for all players | One song per day | No — personal project plays songs from the local list in shuffle order |
+| Share results (emoji grid) | Yes — shareable result summary | Yes | Not in scope (no backend, personal project) |
+| Layer labels in UI | Partial — instrument icons, not text labels | N/A | Text labels (e.g. "Drums + Bass") — clearer and simpler to implement |
 
 ---
 
 ## Sources
 
-- Direct codebase audit: `/index.html`, `/themes.css`, `/Music01s/index.html`, `/MusicSplit/index.html`, `/PokeGuess/index.html`, `/PokeGuess/assets/css/style.css` (2026-03-01)
-- PROJECT.md: explicit scope constraints and existing feature list
-- MDN Web Docs (training knowledge): `100dvh` browser support, touch target guidelines (44px from Apple HIG / Material Design)
-- Bandle.app referenced in MusicSplit source code (`Inspired by bandle.app`)
+- Direct codebase audit (HIGH confidence): `/Music01s/index.html`, `/MusicSplit/index.html`, `/MusicSplit/player.js`, `/MusicSplit/utils.js`, `/MusicSplit/generate.py`, `/MusicSplit/README.md`, `/Music01s/build.py`, `/Music01s/songs.js` (2026-03-01)
+- `PROJECT.md` (HIGH confidence): layer order, scope constraints, pipeline decision already made
+- `STATE.md` (HIGH confidence): v1.1 active milestone, decisions logged
+- Bandle.app game mechanics (MEDIUM confidence, training data): core mechanic is cumulative layer reveal over 6 rounds with autocomplete guessing; cited directly in MusicSplit source code as inspiration
+- Heardle.app game mechanics (MEDIUM confidence, training data): 6-round single-clip growing model; now defunct; used for contrast only
+- Music01s implementation (HIGH confidence): direct code reading confirms all patterns available for reuse
 
 ---
 
-*Feature research for: static mini-game collection portal (polish milestone)*
+*Feature research for: MusicSplit v1.1 — instrument-layering guessing game transformation*
 *Researched: 2026-03-01*
