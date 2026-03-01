@@ -37,22 +37,24 @@
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 2: Build Pipeline** - Python script renders MIDI files to per-instrument-group MP3s and generates the songs.json manifest
+- [ ] **Phase 2: Build Pipeline** - Python script renders MIDI files to per-instrument-group MP3s and generates the songs.js manifest
 - [ ] **Phase 3: Game Core** - Playable 6-round guessing game with cumulative audio, autocomplete guessing, win/lose states, and legacy code removed
 - [ ] **Phase 4: UI Polish + Explorer Mode** - Layer name indicators, badge strip, round timeline, and free-play explorer mode
 
 ## Phase Details
 
 ### Phase 2: Build Pipeline
-**Goal**: A local Python build pipeline converts MIDI files into per-instrument-group MP3s and a machine-readable songs.json manifest, giving the game real audio assets to play
+**Goal**: A local Python build pipeline converts MIDI files into per-instrument-group MP3s and a machine-readable songs.js manifest, giving the game real audio assets to play
 **Depends on**: Phase 1
 **Requirements**: BUILD-01, BUILD-02, BUILD-03, BUILD-04
 **Success Criteria** (what must be TRUE):
   1. Running `build.py` on a MIDI file produces 6 MP3 files (one per instrument group: Drums+Perc, Bass, Brass/Wind, Keys/Piano+Synth, Guitar, Ensemble+Choir+Strings) in `MusicSplit/audio/<song-id>/`
   2. Each group MP3 contains only its assigned instruments and all group MP3s for a song share the same total duration
-  3. Running `build.py` produces a `songs.json` file listing each song's title, artist, and all per-group file paths with flags indicating which groups are non-empty
+  3. Running `build.py` produces a `songs.js` file listing each song's title, artist, and all per-group file paths with flags indicating which groups are non-empty
   4. Playing a group MP3 in a browser or audio player sounds like recognizable instruments from the original song (not oscillator tones)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Build complete MIDI-to-MP3 pipeline (build.py + .gitignore + end-to-end verification)
 
 ### Phase 3: Game Core
 **Goal**: A fully playable MusicSplit guessing game where the player hears cumulative instrument layers, submits guesses with autocomplete, skips rounds, and receives a win or lose outcome — with all legacy oscillator/Tone.js code gone
@@ -86,6 +88,6 @@ Phases execute in numeric order: 2 → 3 → 4
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Theme Unification | v1.0 | 3/3 | Complete | 2026-03-01 |
-| 2. Build Pipeline | v1.1 | 0/? | Not started | - |
+| 2. Build Pipeline | v1.1 | 0/1 | Planned | - |
 | 3. Game Core | v1.1 | 0/? | Not started | - |
 | 4. UI Polish + Explorer Mode | v1.1 | 0/? | Not started | - |
