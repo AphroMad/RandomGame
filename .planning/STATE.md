@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: unknown
-last_updated: "2026-03-01T11:53:01.960Z"
+milestone: v1.1
+milestone_name: MusicSplit Game
+status: defining_requirements
+last_updated: "2026-03-01"
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -18,16 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Every game feels like part of the same polished product — consistent design across all games.
-**Current focus:** Phase 1 — Theme Unification
+**Current focus:** Milestone v1.1 — MusicSplit Game (defining requirements)
 
 ## Current Position
 
-Phase: 1 of 1 (Theme Unification)
-Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-01 — Completed 01-03 (cross-game verification, human-approved)
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-01 — Milestone v1.1 started
 
 ## Performance Metrics
 
@@ -42,10 +40,6 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | - | - | - | - |
 
-**Recent Trend:**
-- Last 5 plans: —
-- Trend: —
-
 *Updated after each plan completion*
 
 ## Accumulated Context
@@ -55,10 +49,11 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Setup]: Dark theme for all games — match homepage unified feel
-- [Setup]: Vanilla HTML/CSS/JS — no build step, GitHub Pages constraint
-- [Setup]: No new games in this milestone — polish existing 3 first
-- [01-02]: MusicSplit logo uses var(--text) main + var(--purple) em, matching Music01s pattern
+- [v1.0]: Dark theme for all games — match homepage unified feel
+- [v1.0]: Vanilla HTML/CSS/JS — no build step, GitHub Pages constraint
+- [v1.1]: MIDI → MP3 via soundfonts — better audio than oscillator synthesis
+- [v1.1]: Merge Strings/Synth/Other into closest groups — keep 6 rounds
+- [v1.1]: Python build pipeline before game UI — audio assets first
 
 ### Pending Todos
 
@@ -66,10 +61,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 1 complete and human-approved.
+None.
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 01-03-PLAN.md — Phase 1 Theme Unification complete, human-approved
+Stopped at: Starting milestone v1.1 — defining requirements
 Resume file: None

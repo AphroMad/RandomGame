@@ -12,25 +12,25 @@ Every game feels like part of the same polished product — consistent design, s
 
 ### Validated
 
-- ✓ Homepage with game list — existing
-- ✓ Music 01s game (guess the song from 1s clip) — existing
-- ✓ Music Split game (separate instruments) — existing
-- ✓ PokeGuess game (Pokémon quiz) — existing
-- ✓ Dark theme with gradient accents — existing (themes.css)
+- ✓ Homepage with game list — v1.0
+- ✓ Music 01s game (guess the song from 1s clip) — v1.0
+- ✓ Music Split game (separate instruments) — v1.0
+- ✓ PokeGuess game (Pokémon quiz) — v1.0
+- ✓ Dark theme with gradient accents — v1.0 (themes.css)
+- ✓ Unified visual design across all 3 games — v1.0 (Theme Unification)
 
 ### Active
 
-- [ ] Unified visual design across all 3 games matching homepage style
-- [ ] Shared code structure and patterns across games
-- [ ] Mobile-responsive design for all games
-- [ ] Consistent navigation between games and homepage
+- [ ] Python build pipeline: MIDI → per-instrument-group MP3 rendering
+- [ ] MusicSplit game UI: Music01s-style guess/skip flow with cumulative audio layers
+- [ ] 6-round instrument reveal: Drums+Perc → Bass → Brass/Wind → Keys/Piano+Synth → Guitar → Ensemble+Choir+Strings
 
 ### Out of Scope
 
-- New games — focus on polishing existing 3 first
+- Other games changes — focus on MusicSplit transformation
 - User accounts or score tracking — personal/friends project
 - Backend/server — GitHub Pages static hosting only
-- Game template system — not needed until adding new games
+- Real audio stem separation (e.g. Demucs) — using MIDI-to-audio rendering instead
 
 ## Context
 
@@ -48,13 +48,25 @@ Every game feels like part of the same polished product — consistent design, s
 - **Tech stack**: Vanilla HTML/CSS/JS — no build tools or frameworks (keep it simple)
 - **Design**: Must match existing homepage aesthetic (dark theme, gradient accents, same fonts)
 
+## Current Milestone: v1.1 MusicSplit Game
+
+**Goal:** Transform MusicSplit from a MIDI visualizer into a real guessing game with cumulative instrument layers
+
+**Target features:**
+- Python build pipeline rendering MIDI files to per-instrument-group MP3s via FluidSynth/soundfonts
+- Music01s-style game UI with guess/skip flow and autocomplete
+- 6-round cumulative instrument reveal (Drums+Perc → Bass → Brass/Wind → Keys/Piano+Synth → Guitar → Ensemble+Choir+Strings)
+
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Dark theme for all games | Match homepage, unified feel | — Pending |
-| Vanilla HTML/CSS/JS | Already in use, no build step needed for GitHub Pages | — Pending |
-| No new games in this milestone | Polish first, expand later | — Pending |
+| Dark theme for all games | Match homepage, unified feel | ✓ Good |
+| Vanilla HTML/CSS/JS | Already in use, no build step needed for GitHub Pages | ✓ Good |
+| No new games in v1.0 | Polish first, expand later | ✓ Good |
+| MIDI → MP3 via soundfonts | Better audio quality than oscillator synthesis, simpler playback | — Pending |
+| Merge Strings/Synth/Other into closest groups | Keep exactly 6 rounds, avoid sparse groups | — Pending |
+| Python build pipeline before game UI | Get audio assets right first, then build the game | — Pending |
 
 ---
-*Last updated: 2026-03-01 after initialization*
+*Last updated: 2026-03-01 after milestone v1.1 start*
