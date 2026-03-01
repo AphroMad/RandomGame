@@ -3,433 +3,287 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0.1 SONG</title>
+<title>Music 01s</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../themes.css">
 <script src="songs.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:       #09090b;
-    --s1:       #111114;
-    --s2:       #17171c;
-    --border:   #222228;
-    --border2:  #2e2e38;
-    --accent:   #c8f060;
-    --danger:   #f06870;
-    --text:     #e2e2ee;
-    --muted:    #52526a;
-    --muted2:   #38384a;
-    --ff-title: 'Bebas Neue', sans-serif;
-    --ff-mono:  'DM Mono', monospace;
-    --ff-body:  'DM Sans', sans-serif;
-  }
-
   html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--ff-body); overflow: hidden; }
 
-  body::after {
-    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-  }
-
-  .orb { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
-  .orb-a { width: 700px; height: 700px; top: -250px; left: -200px; background: radial-gradient(circle, rgba(200,240,96,.05) 0%, transparent 70%); }
-  .orb-b { width: 500px; height: 500px; bottom: -150px; right: -150px; background: radial-gradient(circle, rgba(96,208,240,.04) 0%, transparent 70%); }
-
   .shell {
-    position: relative; z-index: 1;
-    height: 100vh;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 28px 24px 32px;
+    position: relative; z-index: 1; height: 100vh;
+    display: flex; flex-direction: column;
+    max-width: 820px; margin: 0 auto; padding: 28px 40px 24px;
   }
 
-  /* HEADER */
-  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 32px; }
-  .logo { font-family: var(--ff-title); font-size: 2.6rem; letter-spacing: .1em; line-height: 1; color: var(--accent); text-decoration: none; }
-  .logo em { color: var(--text); font-style: normal; }
-
-
-  /* CENTER */
-  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; }
-
-  /* Song meta */
-  .song-meta { text-align: center; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
-  .song-title { font-family: var(--ff-title); font-size: 2rem; letter-spacing: .06em; color: var(--text); opacity: 0; transform: translateY(6px); transition: opacity .4s, transform .4s; }
-  .song-title.revealed { opacity: 1; transform: none; }
-  .song-artist { font-family: var(--ff-mono); font-size: .75rem; color: var(--muted); letter-spacing: .12em; opacity: 0; transition: opacity .4s .1s; }
-  .song-artist.revealed { opacity: 1; }
-
-  /* ── CLIP HISTORY ── */
-  /* Shows past clips as small replayable pills, stacked above the main player */
-  .clip-history {
-    width: 100%; max-width: 520px;
-    display: flex; flex-direction: column; gap: 6px;
-    min-height: 0;
+  .logo {
+    font-family: var(--ff-body); font-weight: 700; font-size: 2.2rem;
+    color: var(--text); text-decoration: none; text-align: center;
+    display: block; margin-bottom: 24px;
   }
 
-  .past-clip {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-    padding: 9px 14px;
-    animation: slideIn .2s ease;
-  }
-  .past-clip.skipped { border-color: rgba(240,104,112,.25); background: rgba(240,104,112,.04); }
+  /* 6 attempt rows filling available space */
+  .attempts { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
 
-  @keyframes slideIn { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: none; } }
-
-  .past-clip-dur {
-    font-family: var(--ff-mono); font-size: .6rem; letter-spacing: .08em;
-    color: var(--muted); min-width: 28px;
-  }
-  .past-clip-bar {
-    flex: 1; height: 3px; border-radius: 2px; background: var(--border2); overflow: hidden; position: relative;
-  }
-  .past-clip-bar .pfill { height: 100%; border-radius: 2px; width: 0%; transition: none; }
-  .past-clip.skipped .past-clip-bar .pfill { background: var(--danger); }
-  .past-clip:not(.skipped) .past-clip-bar .pfill { background: var(--accent); }
-
-  .btn-replay {
-    background: transparent; border: 1px solid var(--border2); border-radius: 6px;
-    color: var(--muted); font-family: var(--ff-mono); font-size: .55rem; letter-spacing: .08em;
-    padding: 5px 10px; cursor: pointer; white-space: nowrap;
-    transition: border-color .15s, color .15s;
-    flex-shrink: 0;
-  }
-  .btn-replay:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-replay.playing { border-color: var(--accent); color: var(--accent); }
-  .past-clip.skipped .btn-replay:hover { border-color: var(--danger); color: var(--danger); }
-
-  /* ── MAIN PLAYER ── */
-  .player-block { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-
-  /* progress bar under play button */
-  .main-progress-wrap {
-    width: 110px; height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden;
-  }
-  .main-progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; }
-
-  .play-ring {
-    width: 100px; height: 100px; border-radius: 50%; border: 1.5px solid var(--border2);
+  .attempt-row {
+    flex: 1; border-radius: 8px; background: var(--s1);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; position: relative; transition: border-color .2s;
+    font-family: var(--ff-body); font-size: .9rem; font-weight: 500;
+    color: transparent; min-height: 0; max-height: 42px;
   }
-  .play-ring:hover { border-color: var(--accent); }
-  .play-ring:hover .play-inner { background: rgba(200,240,96,.12); }
-  .play-ring:active .play-inner { transform: scale(.93); }
+  .attempt-row.skipped  { background: var(--s2); color: var(--muted); }
+  .attempt-row.correct  { background: var(--purple); color: #fff; }
+  .attempt-row.wrong    { background: var(--danger); color: #fff; }
+  .attempt-row.revealed { background: var(--s2); color: var(--text); }
 
-  .play-ring svg.ring-svg {
-    position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px);
-    transform: rotate(-90deg); pointer-events: none;
+  /* timeline */
+  .timeline-wrap { padding: 18px 0 2px; position: relative; }
+
+  .tl-label {
+    position: absolute; top: 0; transform: translateX(-50%);
+    font-family: var(--ff-body); font-size: .8rem; font-weight: 600; color: var(--text);
+    white-space: nowrap;
   }
-  .ring-track    { fill: none; stroke: var(--border2); stroke-width: 1.5; }
-  .ring-progress { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; }
+  .tl-label::after {
+    content: ''; display: block; width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--text); margin: 2px auto 0;
+  }
 
-  .play-inner {
-    width: 70px; height: 70px; border-radius: 50%; background: var(--s2);
+  .tl-track {
+    position: relative; height: 10px; background: var(--s2); border-radius: 4px; overflow: hidden;
+  }
+  .tl-fill { height: 100%; background: var(--purple); border-radius: 4px; width: 0%; }
+
+  /* segment dividers */
+  .tl-segs {
+    position: absolute; inset: 0; display: flex; pointer-events: none;
+  }
+  .tl-seg { flex: 1; border-right: 2px solid var(--bg); }
+  .tl-seg:last-child { border-right: none; }
+
+  /* play button */
+  .play-wrap { display: flex; justify-content: center; padding: 16px 0 18px; }
+
+  .play-btn {
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--purple); border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    transition: background .2s, transform .1s;
+    transition: transform .1s, background .15s; flex-shrink: 0;
   }
-  .play-inner svg { width: 24px; height: 24px; fill: var(--accent); }
+  .play-btn:hover { background: var(--pink); }
+  .play-btn:active { transform: scale(.93); }
+  .play-btn svg { width: 22px; height: 22px; fill: #fff; }
 
-  .current-dur-label {
-    font-family: var(--ff-title); font-size: 1.5rem; letter-spacing: .06em; color: var(--text); line-height: 1;
-  }
-  .play-hint { font-family: var(--ff-mono); font-size: .6rem; color: var(--muted); letter-spacing: .12em; }
+  @keyframes fwin  { 0%{box-shadow:0 0 0 0 rgba(144,149,255,.6)}  100%{box-shadow:0 0 0 40px rgba(144,149,255,0)} }
+  @keyframes flose { 0%{box-shadow:0 0 0 0 rgba(240,104,112,.6)} 100%{box-shadow:0 0 0 40px rgba(240,104,112,0)} }
+  .flash-win  { animation: fwin  .6s ease-out; }
+  .flash-lose { animation: flose .6s ease-out; }
 
-  /* Result banner */
-  .result-banner {
-    width: 100%; max-width: 520px; border-radius: 14px;
-    padding: 16px 22px; display: none; align-items: center; gap: 16px; border: 1px solid;
-  }
-  .result-banner.visible { display: flex; }
-  .result-banner.win  { background: rgba(200,240,96,.07);  border-color: rgba(200,240,96,.2); }
-  .result-banner.lose { background: rgba(240,104,112,.07); border-color: rgba(240,104,112,.2); }
-  .result-icon  { font-size: 1.5rem; flex-shrink: 0; }
-  .result-text  { flex: 1; }
-  .result-label { font-family: var(--ff-title); font-size: 1rem; letter-spacing: .06em; margin-bottom: 2px; }
-  .win  .result-label { color: var(--accent); }
-  .lose .result-label { color: var(--danger); }
-  .result-sub { font-family: var(--ff-mono); font-size: .62rem; color: var(--muted); letter-spacing: .08em; }
-  .result-pts { font-family: var(--ff-title); font-size: 1.5rem; letter-spacing: .04em; }
-  .win  .result-pts { color: var(--accent); }
-  .lose .result-pts { color: var(--muted2); }
+  /* bottom controls */
+  .bottom { display: flex; gap: 10px; }
 
-  /* Guess area */
-  .guess-area { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 10px; }
-  .guess-row  { display: flex; gap: 8px; position: relative; }
+  .guess-wrap { flex: 1; position: relative; }
 
   .guess-input {
-    flex: 1; background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-    padding: 13px 18px; color: var(--text); font-family: var(--ff-body); font-size: .95rem;
+    width: 100%; background: var(--s1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 18px 14px 42px;
+    color: var(--text); font-family: var(--ff-body); font-size: .95rem;
     outline: none; transition: border-color .2s;
   }
   .guess-input:focus { border-color: var(--border2); }
-  .guess-input.has-value { border-color: var(--accent); }
-  .guess-input::placeholder { color: var(--muted2); }
+  .guess-input.has-value { border-color: var(--purple); }
+  .guess-input::placeholder { color: var(--muted); }
   .guess-input:disabled { opacity: .35; cursor: not-allowed; }
 
-  .btn-guess {
-    background: var(--accent); color: #09090b; border: none; border-radius: 10px;
-    padding: 13px 20px; font-family: var(--ff-mono); font-size: .7rem; font-weight: 500;
-    letter-spacing: .1em; cursor: pointer; white-space: nowrap; transition: opacity .15s, transform .1s;
+  .search-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); pointer-events: none; font-size: 1rem;
   }
-  .btn-guess:hover { opacity: .85; }
-  .btn-guess:active { transform: scale(.97); }
-  .btn-guess:disabled { opacity: .25; cursor: not-allowed; }
 
-  /* Autocomplete */
   .ac-wrap {
-    position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+    position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
     background: var(--s2); border: 1px solid var(--border2); border-radius: 12px;
-    overflow: hidden; z-index: 200; display: none; max-height: 200px; overflow-y: auto;
+    overflow: hidden; z-index: 200; display: none;
   }
   .ac-wrap.open { display: block; }
-  .ac-item { padding: 10px 16px; cursor: pointer; transition: background .1s; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--border); }
+  .ac-item {
+    padding: 10px 16px; cursor: pointer; transition: background .1s;
+    display: flex; flex-direction: column; gap: 2px;
+    border-bottom: 1px solid var(--border);
+  }
   .ac-item:last-child { border-bottom: none; }
   .ac-item:hover, .ac-item.focused { background: var(--border); }
-  .ac-title  { font-size: .86rem; color: var(--text); }
+  .ac-title  { font-size: .88rem; color: var(--text); }
   .ac-artist { font-size: .66rem; color: var(--muted); font-family: var(--ff-mono); letter-spacing: .08em; }
 
+  .btn-action {
+    padding: 14px 28px; border-radius: 10px;
+    font-family: var(--ff-body); font-size: .9rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s;
+  }
   .btn-skip {
-    flex: 1; padding: 11px; background: transparent; border: 1px solid var(--border);
-    border-radius: 10px; color: var(--muted); font-family: var(--ff-mono); font-size: .65rem;
-    letter-spacing: .1em; cursor: pointer; transition: border-color .15s, color .15s;
+    background: var(--s1); border: 1px solid var(--border); color: var(--text);
   }
-  .btn-skip:hover { border-color: var(--danger); color: var(--danger); }
-  .btn-skip:disabled { opacity: .2; cursor: not-allowed; }
+  .btn-skip:hover { background: var(--s2); border-color: var(--border2); }
+  .btn-skip:disabled { opacity: .25; cursor: not-allowed; }
 
-  /* Footer */
-  footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; }
-  .inspired { font-family: var(--ff-mono); font-size: .6rem; color: var(--muted); letter-spacing: .08em; text-decoration: none; transition: color .2s; }
-  .inspired:hover { color: var(--text); }
   .btn-next {
-    background: transparent; border: 1px solid var(--border2); border-radius: 10px;
-    padding: 11px 26px; color: var(--text); font-family: var(--ff-mono); font-size: .7rem;
-    letter-spacing: .12em; cursor: pointer; transition: border-color .2s, color .2s; display: none;
+    background: var(--purple); border: none; color: #fff;
+    display: none;
   }
-  .btn-next:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-next:hover { background: var(--pink); }
   .btn-next.visible { display: block; }
 
-  /* Flash */
-  @keyframes fwin  { 0%{box-shadow:0 0 0 0 rgba(200,240,96,.5)}  100%{box-shadow:0 0 0 32px rgba(200,240,96,0)} }
-  @keyframes flose { 0%{box-shadow:0 0 0 0 rgba(240,104,112,.5)} 100%{box-shadow:0 0 0 32px rgba(240,104,112,0)} }
-  .flash-win  { animation: fwin  .6s ease-out; }
-  .flash-lose { animation: flose .6s ease-out; }
+  .btn-confirm {
+    background: var(--purple); border: none; color: #fff;
+    display: none;
+  }
+  .btn-confirm:hover { background: var(--pink); }
+  .btn-confirm.visible { display: block; }
 
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
 </head>
 <body>
-<div class="orb orb-a"></div>
-<div class="orb orb-b"></div>
-
 <div class="shell">
-  <header>
-    <a href="../index.html" class="logo">Music <em>01s</em></a>
-  </header>
+  <a href="../index.html" class="logo">Music 01s</a>
 
-  <div class="center">
-
-    <!-- Song title revealed after round ends -->
-    <div class="song-meta">
-      <div class="song-title"  id="songTitle"></div>
-      <div class="song-artist" id="songArtist"></div>
-    </div>
-
-    <!-- Past clips — replayable -->
-    <div class="clip-history" id="clipHistory"></div>
-
-    <!-- Current clip player -->
-    <div class="player-block" id="playerBlock">
-      <div class="play-ring" id="playRing" onclick="playClip()">
-        <svg class="ring-svg" viewBox="0 0 102 102">
-          <circle class="ring-track"    cx="51" cy="51" r="49"/>
-          <circle class="ring-progress" id="ringProgress" cx="51" cy="51" r="49"
-            stroke-dasharray="307.9" stroke-dashoffset="307.9"/>
-        </svg>
-        <div class="play-inner">
-          <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        </div>
-      </div>
-      <div class="current-dur-label" id="currentDurLabel">0.1s</div>
-      <div class="play-hint" id="playHint">CLICK TO PLAY</div>
-    </div>
-
-    <!-- Result -->
-    <div class="result-banner" id="resultBanner">
-      <div class="result-icon"  id="resultIcon"></div>
-      <div class="result-text">
-        <div class="result-label" id="resultLabel"></div>
-        <div class="result-sub"   id="resultSub"></div>
-      </div>
-      <div class="result-pts" id="resultPts"></div>
-    </div>
-
-    <!-- Guess -->
-    <div class="guess-area">
-      <div class="guess-row" id="guessRow">
-        <input class="guess-input" id="guessInput" type="text"
-          placeholder="Song title or artist…" autocomplete="off"
-          oninput="onInput()" onkeydown="onKey(event)">
-        <button class="btn-guess" id="btnGuess" onclick="submitGuess()">GUESS</button>
-        <div class="ac-wrap" id="acWrap"></div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-skip" id="btnSkip" onclick="skipStep()">SKIP — NEXT CLIP</button>
-      </div>
-    </div>
-
+  <div class="attempts">
+    <div class="attempt-row" id="row-0"></div>
+    <div class="attempt-row" id="row-1"></div>
+    <div class="attempt-row" id="row-2"></div>
+    <div class="attempt-row" id="row-3"></div>
+    <div class="attempt-row" id="row-4"></div>
+    <div class="attempt-row" id="row-5"></div>
   </div>
 
-  <footer>
-    <a href="https://lessgames.com/songless" target="_blank" class="inspired">inspired by songless ↗</a>
-    <button class="btn-next" id="btnNext" onclick="nextSong()">NEXT SONG →</button>
-  </footer>
+  <div class="timeline-wrap" id="timelineWrap">
+    <div class="tl-label" id="tlLabel" style="left:0%">0.1s</div>
+    <div class="tl-track">
+      <div class="tl-fill" id="tlFill"></div>
+      <div class="tl-segs" id="tlSegs"></div>
+    </div>
+  </div>
+
+  <div class="play-wrap">
+    <button class="play-btn" id="playBtn" onclick="playClip()">
+      <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  </div>
+
+  <div class="bottom">
+    <div class="guess-wrap" id="guessRow">
+      <span class="search-icon">🔍</span>
+      <input class="guess-input" id="guessInput" type="text"
+        placeholder="Search a song" autocomplete="off"
+        oninput="onInput()" onkeydown="onKey(event)">
+      <div class="ac-wrap" id="acWrap"></div>
+    </div>
+    <button class="btn-action btn-skip" id="btnSkip" onclick="skipStep()">Skip</button>
+    <button class="btn-action btn-confirm" id="btnConfirm" onclick="submitGuess()">✓</button>
+    <button class="btn-action btn-next" id="btnNext" onclick="nextSong()">Next →</button>
+  </div>
 </div>
 
 <script>
-const CLIPS  = [0.1, 0.5, 2, 4, 8, 16];
-const POINTS = [1000, 800, 600, 400, 200, 50];
-const CIRC   = 307.9;
+const CLIPS    = [0.1, 0.5, 2, 4, 8, 16];
+const TOTAL_DUR = CLIPS[CLIPS.length - 1];
 
 let songs = typeof SONGS !== 'undefined' ? shuffle([...SONGS]) : [];
-let songIdx = 0, round = 0, done = false;
-let acIdx = -1;
-let replayPlayingBtn = null;
+let songIdx = 0, round = 0, done = false, acIdx = -1;
 
-// Single <audio> element reused for everything
 const audio = new Audio();
-let clipTimer = null;
-let rafId     = null;
-let clipStart = null;
+let clipTimer = null, rafId = null, clipStart = null;
+let clipState = 'idle', clipElapsed = 0, clipOnEnd = null, clipOnProg = null, clipTotalMs = 0;
 
-// ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   if (!songs.length) {
-    document.querySelector('.center').innerHTML =
-      `<div style="text-align:center;font-family:var(--ff-mono);color:var(--muted);font-size:.8rem;line-height:2.4">
-        <div style="font-size:2rem;margin-bottom:12px">🎵</div>
-        No songs found.<br>
-        Run <code style="color:var(--text);background:var(--s2);padding:2px 8px;border-radius:4px">python generate.py</code> first.
+    document.querySelector('.shell').innerHTML =
+      `<div style="height:100dvh;display:flex;align-items:center;justify-content:center;
+         font-family:var(--ff-mono);color:var(--muted);font-size:.8rem;text-align:center;line-height:2.4">
+        <div>🎵<br>No songs found.<br>Run <code style="color:var(--text)">python build.py</code> first.</div>
       </div>`;
     return;
   }
+  buildTimeline();
   loadSong();
 });
 
-// ── LOAD SONG ─────────────────────────────────────────────────────────────────
+function buildTimeline() {
+  document.getElementById('tlSegs').innerHTML = CLIPS.map(() => `<div class="tl-seg"></div>`).join('');
+}
+
+function setTlProgress(p) { document.getElementById('tlFill').style.width = (p * 100) + '%'; }
+
+function setTlLabel(clipIdx) {
+  const dur = CLIPS[clipIdx];
+  const pct = dur / TOTAL_DUR * 100;
+  const lbl = document.getElementById('tlLabel');
+  lbl.style.left = pct + '%';
+  lbl.textContent = dur + ' seconds';
+}
+
 function loadSong() {
   if (songIdx >= songs.length) { endGame(); return; }
   round = 0; done = false;
-
   stopClip();
-  audio.src = songs[songIdx].file;
-  audio.load();
-  console.log('Loading:', songs[songIdx].file);
-
-  // reset UI
-  document.getElementById('clipHistory').innerHTML = '';
-  hideMeta(); hideResult();
-  setInputEnabled(true);
+  audio.src = songs[songIdx].file; audio.load();
+  for (let i = 0; i < CLIPS.length; i++) {
+    const r = document.getElementById('row-' + i);
+    r.className = 'attempt-row'; r.textContent = '';
+  }
   document.getElementById('guessInput').value = '';
   document.getElementById('guessInput').classList.remove('has-value');
   document.getElementById('btnNext').classList.remove('visible');
-  document.getElementById('playerBlock').style.display = 'flex';
-  updatePlayerLabel();
-  setRingProgress(0);
-  document.getElementById('playHint').textContent = 'CLICK TO PLAY';
-  setPlayIcon(false);
+  document.getElementById('btnConfirm').classList.remove('visible');
+  document.getElementById('btnSkip').style.display = '';
+  setInputEnabled(true); setPlayIcon(false);
+  setTlProgress(0); setTlLabel(0);
   clipState = 'idle'; clipElapsed = 0;
-  if (replayPlayingBtn) { replayPlayingBtn.textContent = '▶ REPLAY'; replayPlayingBtn.classList.remove('playing'); replayPlayingBtn = null; }
 }
 
-// ── PLAY / PAUSE CLIP (main button) ──────────────────────────────────────────
 function playClip() {
   if (done) return;
-
-  // If currently playing → pause
-  if (clipState === 'playing') {
-    pauseClip();
-    return;
-  }
-
-  // If paused mid-clip → resume
-  if (clipState === 'paused') {
-    resumeClip();
-    return;
-  }
-
-  // Fresh start
-  startClip(CLIPS[round], setRingProgress, () => {
-    clipState = 'idle';
-    setPlayIcon(false);
-    document.getElementById('playHint').textContent = 'CLICK TO REPLAY';
-    setRingProgress(0);
-  });
+  if (clipState === 'playing') { pauseClip(); return; }
+  if (clipState === 'paused')  { resumeClip(); return; }
+  startClip(CLIPS[round],
+    (p) => setTlProgress(p * (CLIPS[round] / TOTAL_DUR)),
+    () => { clipState = 'idle'; setPlayIcon(false); setTlProgress(0); }
+  );
 }
-
-// ── CORE STATE ────────────────────────────────────────────────────────────────
-// clipState: 'idle' | 'playing' | 'paused'
-// clipElapsed: ms already played before current play() call
-let clipState   = 'idle';
-let clipElapsed = 0;   // ms consumed before current session
-let clipOnEnd   = null;
-let clipOnProg  = null;
-let clipTotalMs = 0;
 
 function startClip(dur, onProgress, onEnd) {
   resetClip();
-
-  clipTotalMs = dur * 1000;
-  clipOnProg  = onProgress;
-  clipOnEnd   = onEnd;
-  clipElapsed = 0;
-  clipState   = 'playing';
-
+  clipTotalMs = dur * 1000; clipOnProg = onProgress; clipOnEnd = onEnd;
+  clipElapsed = 0; clipState = 'playing';
   audio.currentTime = 0;
-  audio.play().catch(e => console.error('play() failed:', e));
-
-  setPlayIcon(true);
-  document.getElementById('playHint').textContent = 'PLAYING…';
-  scheduleStop();
-  tickProgress();
+  audio.play().catch(e => console.error(e));
+  setPlayIcon(true); scheduleStop(); tickProgress();
 }
 
 function pauseClip() {
   if (clipState !== 'playing') return;
-  clipState    = 'paused';
-  clipElapsed += Date.now() - clipStart;  // save how far we got
-  clearTimeout(clipTimer); clipTimer = null;
-  cancelAnimationFrame(rafId); rafId = null;
-  audio.pause();
-  setPlayIcon(false);
-  document.getElementById('playHint').textContent = 'CLICK TO RESUME';
+  clipState = 'paused'; clipElapsed += Date.now() - clipStart;
+  clearTimeout(clipTimer); cancelAnimationFrame(rafId);
+  audio.pause(); setPlayIcon(false);
 }
 
 function resumeClip() {
   if (clipState !== 'paused') return;
   clipState = 'playing';
-  // Resume audio from where it stopped
-  audio.play().catch(e => console.error('resume play() failed:', e));
-  setPlayIcon(true);
-  document.getElementById('playHint').textContent = 'PLAYING…';
-  scheduleStop();
-  tickProgress();
+  audio.play().catch(e => console.error(e));
+  setPlayIcon(true); scheduleStop(); tickProgress();
 }
 
 function scheduleStop() {
   const remaining = clipTotalMs - clipElapsed;
   clipStart = Date.now();
   clipTimer = setTimeout(() => {
-    audio.pause();
-    audio.currentTime = 0;
-    cancelAnimationFrame(rafId); rafId = null;
-    clipState   = 'idle';
-    clipElapsed = 0;
+    audio.pause(); audio.currentTime = 0; cancelAnimationFrame(rafId);
+    clipState = 'idle'; clipElapsed = 0;
     if (clipOnProg) clipOnProg(1);
     if (clipOnEnd)  clipOnEnd();
   }, remaining);
@@ -446,97 +300,32 @@ function tickProgress() {
   rafId = requestAnimationFrame(tick);
 }
 
-// ── RESET / STOP EVERYTHING ───────────────────────────────────────────────────
 function resetClip() {
-  clearTimeout(clipTimer); clipTimer = null;
-  cancelAnimationFrame(rafId); rafId = null;
-  clipState   = 'idle';
-  clipElapsed = 0;
-  if (!audio.paused) audio.pause();
-  audio.currentTime = 0;
+  clearTimeout(clipTimer); cancelAnimationFrame(rafId);
+  clipState = 'idle'; clipElapsed = 0;
+  if (!audio.paused) audio.pause(); audio.currentTime = 0;
 }
+function stopClip() { resetClip(); setPlayIcon(false); }
 
-// ── STOP EVERYTHING (used by skip / next song) ────────────────────────────────
-function stopClip() {
-  resetClip();
-  setPlayIcon(false);
-}
-
-// ── REPLAY PAST CLIP ──────────────────────────────────────────────────────────
-function replayPastClip(btn, clipIndex) {
-  // reset previously active replay btn
-  if (replayPlayingBtn && replayPlayingBtn !== btn) {
-    replayPlayingBtn.textContent = '▶ REPLAY';
-    replayPlayingBtn.classList.remove('playing');
-    replayPlayingBtn = null;
-  }
-
-  // reset main player ring
-  setRingProgress(0);
-
-  const fillEl = btn.closest('.past-clip').querySelector('.pfill');
-  btn.textContent = '■ STOP';
-  btn.classList.add('playing');
-  replayPlayingBtn = btn;
-
-  startClip(CLIPS[clipIndex],
-    (p) => { if (fillEl) fillEl.style.width = (p * 100) + '%'; },
-    () => {
-      if (fillEl) { fillEl.style.width = '100%'; setTimeout(() => fillEl.style.width = '0%', 300); }
-      btn.textContent = '▶ REPLAY';
-      btn.classList.remove('playing');
-      if (replayPlayingBtn === btn) replayPlayingBtn = null;
-    }
-  );
-}
-
-// ── SKIP ──────────────────────────────────────────────────────────────────────
 function skipStep() {
   document.getElementById('acWrap').classList.remove('open');
-  stopClip();
-  setRingProgress(0);
-  // reset any active replay button
-  if (replayPlayingBtn) {
-    replayPlayingBtn.textContent = '▶ REPLAY';
-    replayPlayingBtn.classList.remove('playing');
-    replayPlayingBtn = null;
-  }
-  addToHistory(round, true);
+  stopClip(); setTlProgress(0);
+  const row = document.getElementById('row-' + round);
+  row.className = 'attempt-row skipped'; row.textContent = 'Skipped';
   round++;
-  if (round >= CLIPS.length) {
-    lose();
-  } else {
-    updatePlayerLabel();
-    document.getElementById('guessInput').value = '';
-    document.getElementById('guessInput').classList.remove('has-value');
-    document.getElementById('playHint').textContent = 'CLICK TO PLAY';
-  }
+  if (round >= CLIPS.length) { lose(); return; }
+  setTlLabel(round);
+  document.getElementById('guessInput').value = '';
+  document.getElementById('guessInput').classList.remove('has-value');
 }
 
-// ── HISTORY ───────────────────────────────────────────────────────────────────
-function addToHistory(clipIdx, skipped) {
-  const dur  = CLIPS[clipIdx];
-  const pill = document.createElement('div');
-  pill.className = 'past-clip' + (skipped ? ' skipped' : '');
-  pill.innerHTML = `
-    <span class="past-clip-dur">${dur}s</span>
-    <div class="past-clip-bar"><div class="pfill"></div></div>
-    <button class="btn-replay" onclick="replayPastClip(this, ${clipIdx})">▶ REPLAY</button>
-  `;
-  document.getElementById('clipHistory').appendChild(pill);
-}
-
-function updatePlayerLabel() {
-  document.getElementById('currentDurLabel').textContent = CLIPS[round] + 's';
-}
-
-// ── GUESS ─────────────────────────────────────────────────────────────────────
 function onInput() {
   const val = document.getElementById('guessInput').value;
   document.getElementById('guessInput').classList.toggle('has-value', val.length > 0);
-  const n  = val.trim().toLowerCase();
+  document.getElementById('btnConfirm').classList.toggle('visible', val.length > 0);
+  const n = val.trim().toLowerCase();
   const ac = document.getElementById('acWrap');
-  acIdx    = -1;
+  acIdx = -1;
   if (!n) { ac.classList.remove('open'); return; }
   const hits = songs.filter(s => norm(s.title).includes(n) || norm(s.artist||'').includes(n)).slice(0, 7);
   if (!hits.length) { ac.classList.remove('open'); return; }
@@ -549,11 +338,9 @@ function onInput() {
 }
 
 function pickAC(el) {
-  document.getElementById('guessInput').value =
-    el.dataset.title + (el.dataset.artist ? ' — ' + el.dataset.artist : '');
+  document.getElementById('guessInput').value = el.dataset.title + (el.dataset.artist ? ' — ' + el.dataset.artist : '');
   document.getElementById('guessInput').classList.add('has-value');
-  document.getElementById('acWrap').classList.remove('open');
-  acIdx = -1;
+  document.getElementById('acWrap').classList.remove('open'); acIdx = -1;
 }
 
 function onKey(e) {
@@ -566,109 +353,80 @@ function onKey(e) {
 
 function submitGuess() {
   document.getElementById('acWrap').classList.remove('open');
-  const guess  = norm(document.getElementById('guessInput').value);
-  const song   = songs[songIdx];
-  const title  = norm(song.title);
-  const artist = norm(song.artist || '');
+  const guess = norm(document.getElementById('guessInput').value);
+  const song  = songs[songIdx];
   const correct = guess.length > 1 && (
-    title.includes(guess) || guess.includes(title) ||
-    (artist && (artist.includes(guess) || guess.includes(artist)))
+    norm(song.title).includes(guess) || guess.includes(norm(song.title)) ||
+    (song.artist && (norm(song.artist).includes(guess) || guess.includes(norm(song.artist))))
   );
-  if (correct) {
-    win();
-  } else {
-    const inp = document.getElementById('guessInput');
-    inp.style.borderColor = 'var(--danger)';
-    setTimeout(() => inp.style.borderColor = '', 500);
-    inp.value = '';
-    inp.classList.remove('has-value');
-  }
+  if (correct) { win(); return; }
+
+  const row = document.getElementById('row-' + round);
+  row.className = 'attempt-row wrong';
+  row.textContent = document.getElementById('guessInput').value;
+  round++;
+  document.getElementById('guessInput').value = '';
+  document.getElementById('guessInput').classList.remove('has-value');
+  document.getElementById('btnConfirm').classList.remove('visible');
+  stopClip(); setTlProgress(0);
+  if (round >= CLIPS.length) { lose(); return; }
+  setTlLabel(round);
 }
 
-// ── WIN / LOSE ────────────────────────────────────────────────────────────────
 function win() {
-  done = true;
-  stopClip();
-
-  addToHistory(round, false);
-  document.getElementById('playerBlock').style.display = 'none';
-  revealMeta();
-  showResult(true, pts);
-  flashRing('win');
-  setInputEnabled(false); showNext();
+  done = true; stopClip();
+  const row = document.getElementById('row-' + round);
+  row.className = 'attempt-row correct';
+  row.textContent = songs[songIdx].title + (songs[songIdx].artist ? ' — ' + songs[songIdx].artist : '');
+  flashBtn('win'); setInputEnabled(false); showNext();
 }
 
 function lose() {
-  done = true;
-  stopClip();
-  document.getElementById('playerBlock').style.display = 'none';
-  revealMeta();
-  showResult(false, 0);
-  flashRing('lose');
-  setInputEnabled(false); showNext();
+  done = true; stopClip();
+  const row = document.getElementById('row-' + round);
+  row.className = 'attempt-row revealed';
+  row.textContent = songs[songIdx].title + (songs[songIdx].artist ? ' — ' + songs[songIdx].artist : '');
+  flashBtn('lose'); setInputEnabled(false); showNext();
 }
 
-// ── UI HELPERS ────────────────────────────────────────────────────────────────
 function setPlayIcon(playing) {
   document.getElementById('playIcon').innerHTML = playing
     ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
     : '<path d="M8 5v14l11-7z"/>';
 }
 
-function setRingProgress(p) {
-  document.getElementById('ringProgress').style.strokeDashoffset = CIRC - p * CIRC;
+function flashBtn(type) {
+  const b = document.getElementById('playBtn');
+  b.classList.remove('flash-win','flash-lose'); void b.offsetWidth;
+  b.classList.add(type === 'win' ? 'flash-win' : 'flash-lose');
 }
 
-function revealMeta() {
-  const s = songs[songIdx];
-  document.getElementById('songTitle').textContent  = s.title || '???';
-  document.getElementById('songArtist').textContent = s.artist ? s.artist.toUpperCase() : '';
-  document.getElementById('songTitle').classList.add('revealed');
-  document.getElementById('songArtist').classList.add('revealed');
+function showNext() {
+  document.getElementById('btnSkip').style.display = 'none';
+  document.getElementById('btnNext').classList.add('visible');
 }
-function hideMeta() {
-  document.getElementById('songTitle').className   = 'song-title';
-  document.getElementById('songArtist').className  = 'song-artist';
-  document.getElementById('songTitle').textContent = document.getElementById('songArtist').textContent = '';
-}
-function showResult(isWin, pts) {
-  const b = document.getElementById('resultBanner');
-  b.className = 'result-banner visible ' + (isWin ? 'win' : 'lose');
-  document.getElementById('resultIcon').textContent  = isWin ? '🎯' : '💀';
-  document.getElementById('resultLabel').textContent = isWin ? 'NICE EAR!' : 'NOPE.';
-  document.getElementById('resultSub').textContent   = isWin
-    ? `Guessed on clip ${round + 1} — ${CLIPS[round]}s`
-    : 'Better luck next time';
-  document.getElementById('resultPts').textContent   = '';
-}
-function hideResult() { document.getElementById('resultBanner').className = 'result-banner'; }
-function showNext()   { document.getElementById('btnNext').classList.add('visible'); }
+
 function setInputEnabled(on) {
-  ['guessInput','btnGuess','btnSkip'].forEach(id => document.getElementById(id).disabled = !on);
+  document.getElementById('guessInput').disabled = !on;
+  document.getElementById('btnSkip').disabled = !on;
+  if (!on) document.getElementById('btnConfirm').classList.remove('visible');
 }
 
-function flashRing(type) {
-  const r = document.getElementById('playRing');
-  r.classList.remove('flash-win','flash-lose');
-  void r.offsetWidth;
-  r.classList.add(type === 'win' ? 'flash-win' : 'flash-lose');
-}
 function nextSong() { songIdx++; loadSong(); }
 
 function endGame() {
   document.querySelector('.shell').innerHTML = `
-    <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
-      <div style="font-family:var(--ff-title);font-size:5rem;color:var(--accent);letter-spacing:.1em">GAME OVER</div>
-      <div style="font-family:var(--ff-mono);font-size:.75rem;color:var(--muted);letter-spacing:.15em">ALL ${songs.length} SONGS PLAYED</div>
+    <div style="height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center">
+      <div style="font-family:var(--ff-body);font-weight:700;font-size:3rem;color:var(--text)">Game Over</div>
+      <div style="font-family:var(--ff-body);font-size:.9rem;color:var(--muted)">All ${songs.length} songs played</div>
       <button onclick="location.reload()"
-        style="margin-top:28px;padding:14px 36px;background:var(--accent);color:#09090b;border:none;
-               border-radius:10px;font-family:var(--ff-title);font-size:1.2rem;letter-spacing:.1em;cursor:pointer">
-        PLAY AGAIN
+        style="margin-top:20px;padding:14px 36px;background:var(--purple);color:#fff;border:none;
+               border-radius:10px;font-family:var(--ff-body);font-weight:600;font-size:1rem;cursor:pointer">
+        Play Again
       </button>
     </div>`;
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
 function norm(s) { return (s||'').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim(); }
 function esc(s)  { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function shuffle(a) {
