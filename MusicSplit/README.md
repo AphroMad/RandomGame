@@ -1,33 +1,57 @@
-# Fake Bandle - Pierre Marsaa
+# DEPRECATED: This was an early experiment. It's not actually fun to play starting from the midi files so I gave up. 
 
-A MIDI instrument group player that splits a song into its instrument families and lets you listen to each one separately.
+# MusicSplit
 
-## Files
+Converts MIDI files into layered WAV files, separating instruments into cumulative layers.
 
-### `index.html`
-The main app. Opens in any browser and lets you play each instrument group (Bass, Brass/Wind, Strings, Drums, etc.) independently with a progress bar and seek functionality. No backend needed — works on GitHub Pages.
+## Layer Structure
 
-### `generate.py`
-Run this locally whenever you add new `.mid` files to the `midi/` folder. It scans the folder and generates `midi/index.json`, which the HTML uses to know which files are available.
-```bash
-python generate.py
-```
+Each song is split into 4 cumulative layers:
 
-### `details_midi.py`
-A utility script to inspect a MIDI file and print all its instruments. Useful for debugging or understanding the structure of a new file before adding it.
-```bash
-python details_midi.py
-```
-
-### `utils.js`
-Contains the instrument grouping logic — maps General MIDI program numbers to role categories (Bass, Guitar, Strings, Choir, Brass/Wind, Drums, etc.). Used by the HTML to sort tracks into groups.
-
-### `player.js`
-*(legacy — no longer used)*
-An older version of the audio playback logic using Tone.js. The playback code has since been moved directly into `index.html` using raw Web Audio API. Kept for reference.
+| Layer | Content |
+|-------|---------|
+| `layer-1.wav` | Drums + Percussion |
+| `layer-2.wav` | + Bass + Piano/Keys |
+| `layer-3.wav` | + Brass/Wind + Guitar |
+| `layer-4.wav` | + Ensemble/Choir/Strings (full mix) |
 
 ## Setup
 
-1. Drop `.mid` files into the `midi/` folder
-2. Run `python generate.py`
-3. Open `index.html` via a local server (`python -m http.server 8000`) or deploy to GitHub Pages
+### Requirements
+
+```bash
+pip install mido
+brew install fluid-synth
+```
+
+Download a soundfont (.sf2) and place it in `MusicSplit/` or a subfolder:
+- [GeneralUser GS](https://schristiancollins.com/generaluser.php) (free, ~30MB)
+
+### Usage
+
+```bash
+# Convert all MIDI files in midi/ folder
+python3.9 test_convert.py
+
+# Convert a specific file
+python3.9 test_convert.py midi/mysong.mid
+```
+
+### Output
+
+```
+wav/
+  song-name/
+    layer-1.wav
+    layer-2.wav
+    layer-3.wav
+    layer-4.wav
+```
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `test_convert.py` | Main conversion script |
+| `generate.py` | Generates `midi/index.json` for the MIDI player |
+| `index.html` | MIDI player (real-time synthesis, separate from WAV workflow) |
