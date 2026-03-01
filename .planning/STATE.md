@@ -70,5 +70,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Roadmap created — Phase 2 Build Pipeline ready to plan
-Resume file: None
+Stopped at: Phase 2 context gathered — ready to plan
+Resume file: .planning/phases/02-build-pipeline/02-CONTEXT.md
